@@ -1,0 +1,40 @@
+#- name: Yum update
+#  yum:
+#    update-cache: yes
+#    cache_valid_time: 3600
+
+- name: Install haproxy
+  yum:
+    name: haproxy
+    state: present
+
+- name: Firewalld port configuration for haproxy
+  shell : "firewall-cmd --permanent --add-port=6443/tcp --add-port=80/tcp --add-port=5443/tcp"
+  when: inventory_hostname is not in groups['k8s_masters']
+
+- name: Firewalld masquerade  configuration for haproxy
+  shell: "firewall-cmd --permanent --add-masquerade"
+
+- name: Selinux for grafana
+  shell: "semanage port -a -t http_port_t -p tcp 32000"
+
+- name: restart firewalld
+  service:
+    name: firewalld
+    state: restarted
+    enabled: yes
+
+- name: Install haproxy configuration
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload_haproxy
+
+- name: Start haproxy
+  service:
+    name: haproxy
+    state: started
+    enabled: yes

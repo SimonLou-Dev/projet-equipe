@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-pv
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  claimRef:
+    name: storage-monitoring-grafana-0
+    namespace: monitoring
+  storageClassName: standard
+  hostPath:
+    path: /data/kube/grafana
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alertmanager-pv
+spec:
+  claimRef:
+    name: storage-prometheus-alertmanager-0
+    namespace: monitoring
+  capacity:
+    storage: 10Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  hostPath:
+    path: /data/kube/altermanager

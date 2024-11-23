@@ -1,0 +1,3 @@
+ansible_ssh_common_args: >- 
+  -o 'ProxyJump=admintranet@10.255.0.112'
+  -o StrictHostKeyChecking=no

@@ -1,0 +1,74 @@
+- name: Check if already init
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: __kubeadm_already_init
+
+- name: Pull images
+  command: "kubeadm config images pull"
+  when: not __kubeadm_already_init.stat.exists
+  changed_when: false
+
+- name: Init cluster
+  command: "kubeadm init --apiserver-advertise-address={{ ansible_ens18.ipv4.address }} --apiserver-cert-extra-sans={{ ansible_ens18.ipv4.address }},{{ kube_api_endpoint }},{{ ansible_ens19.ipv4.address }},{{ kube_api_internal_endpoint }}  --node-name={{ ansible_hostname }} --pod-network-cidr=10.200.0.0/16  --service-cidr=10.201.0.0/16 --control-plane-endpoint={{ kube_api_internal_endpoint | default(ansible_ens18.ipv4.address) }}"
+  register: __init_output
+  when: not __kubeadm_already_init.stat.exists
+
+- name: Extract define join command and token
+  set_fact:
+    join_command: "{{ __init_output.stdout_lines | select('match', '^kubeadm join') | first }}"
+    join_token: "{{ __init_output.stdout_lines | select('match', '^kubeadm join') | first | regex_replace('.*--token ([^ ]*).*', '\\1') }}"
+  when: not __kubeadm_already_init.stat.exists
+
+- name: Check if kubeconfig already exists
+  stat:
+    path: "/home/vagrant/.kube"
+  register: __kubeconfig_already_init
+
+- name: Create .kube directory
+  file:
+    path: "/home/vagrant/.kube"
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: Copy admin.conf to .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/vagrant/.kube/config"
+    remote_src: true
+    mode: 777
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: Create .kube directory
+  file:
+    path: "/root/.kube"
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: Copy admin.conf to .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/root/.kube/config"
+    remote_src: true
+    mode: 777
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: Check if master is initialized
+  uri:
+    url: "https://{{ kube_api_endpoint }}:6443"
+    validate_certs: no
+    status_code: [403]
+  register: result
+  until: "result.status == 403"
+  retries: 20
+  delay: 5
+  when: not __kubeconfig_already_init.stat.exists
+
+- name: Add CNI - kuberouter
+  shell: kubectl apply -f https://raw.githubusercontent.com/cloudnativelabs/kube-router/master/daemonset/kubeadm-kuberouter.yaml
+  when: not __kubeadm_already_init.stat.exists

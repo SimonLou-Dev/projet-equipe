@@ -1,0 +1,186 @@
+- name: Disable swap
+  shell: swapoff -a
+  register: __cmd_res
+  changed_when: __cmd_res.rc != 0
+
+- name: Remove SWAP in fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^/swap '
+    line: "#/swap"
+
+- name: Modify kernel modules
+  shell: "sudo tee /etc/modules-load.d/containerd.conf <<EOF
+overlay
+br_netfilter
+EOF"
+
+- name: Enable kernel module modprobe
+  shell: "modprobe overlay"
+
+- name: Enable kernel module br_netfilter
+  shell: "modprobe br_netfilter"
+
+
+- name: Firewalld port configuration for kube master
+  shell: "firewall-cmd --permanent --add-port=6443/tcp --add-port=2379-2380/tcp --add-port=10250/tcp --add-port=10251/tcp --add-port=10252/tcp --add-port=10255/tcp --add-port=8472/udp"
+  when: inventory_hostname is in groups['k8s_masters']
+
+- name: Firewalld port configuration for kube workers
+  shell : "firewall-cmd --permanent --add-port=10250/tcp --add-port=10255/tcp --add-port=8472/udp --add-port=30000-32767/tcp"
+  when: inventory_hostname is not in groups['k8s_masters']
+
+- name: Firewalld masquerade  configuration for kube workers
+  shell: "firewall-cmd --permanent --add-masquerade"
+
+- name: restart firewalld
+  service:
+    name: firewalld
+    state: restarted
+    enabled: yes
+
+- name: Add Docker GPG key
+  rpm_key:
+    key: "https://download.docker.com/linux/centos/gpg"
+    state: present
+
+- name: Add Docker repository
+  get_url:
+    url: "https://download.docker.com/linux/{{ (ansible_distribution == 'Fedora') | ternary('fedora','centos') }}/docker-ce.repo"
+    dest: '/etc/yum.repos.d/docker-ce.repo'
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Configure Docker Nightly repo
+  ini_file:
+    dest: '/etc/yum.repos.d/docker-ce.repo'
+    section: 'docker-ce-nightly'
+    option: enabled
+    value: '0'
+    mode: 0644
+
+- name: Ensure container-selinux is installed
+  package:
+    name: container-selinux
+    state: present
+
+- name: Ensure containerd is installed
+  package:
+    name: "containerd.io"
+    state: present
+
+- name: Get checksum of containerd configuration
+  stat:
+    path: /etc/containerd/config.toml
+  register: __containerd_toml_checksum_before
+
+- name: Generate containerd config file
+  shell: containerd config default
+  register: __containerd_config
+  changed_when: __containerd_config.rc != 0
+
+- name: Save containerd config file
+  copy:
+    content: "{{ __containerd_config.stdout }}"
+    dest:  /etc/containerd/config.toml
+  changed_when: __containerd_config.rc != 0
+
+- name: Change cgroup conf
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^(.*)SystemdCgroup = false(.*)$'
+    line: '\1SystemdCgroup = true\2'
+    backrefs: yes
+  changed_when: False
+
+
+- name: Get checksum of containerd configuration after
+  stat:
+    path: /etc/containerd/config.toml
+  register: __containerd_toml_checksum_after
+
+- name: Restart containerd if needed
+  service:
+    name: containerd
+    state: restarted
+    enabled: yes
+  when: __containerd_toml_checksum_after != __containerd_toml_checksum_before
+
+- name: Check if containerd file exists
+  stat:
+    path: /etc/modules-load.d/containerd.conf
+  register: __containerd_conf_exists
+
+- name: Add containerd modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Create containerd.conf file if not exist
+  copy:
+    dest: /etc/modules-load.d/containerd.conf
+    content: |
+      overlay
+      br_netfilter
+  when: not __containerd_conf_exists.stat.exists
+  notify: restart_containerd
+
+- ansible.builtin.meta: flush_handlers
+
+- name: Ensure containerd is started
+  service:
+    name: containerd
+    state: started
+    enabled: yes
+
+- ansible.posix.sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- ansible.posix.sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+
+- name: Check if kubernetes repo exists
+  stat:
+    path: /etc/yum.repos.d/kubernetes.repo
+  register: __kubernetes_repo_exists
+
+- name: Install the repo
+  ansible.builtin.yum_repository:
+    name: Kubernetes
+    file: kubernetes
+    description: Kubernetes
+    baseurl: https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
+    gpgcheck: no
+    enabled: yes
+    gpgkey: https://pkgs.k8s.io/core:/stable:/v1.28/rpm/repodata/repomd.xml.key
+  when: not __kubernetes_repo_exists.stat.exists
+
+- ansible.builtin.meta: flush_handlers
+
+- name: Install Kubernetes packages
+  yum:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - "kubelet"
+    - "kubeadm"
+    - "kubectl"

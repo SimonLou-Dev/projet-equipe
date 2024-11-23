@@ -1,0 +1,7 @@
+ansible_user: admintranet
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+kubeadm_init_node: kube-master-0
+kubeadm_master_group_name: k8s_masters
+kubeadm_worker_group_name: k8s_workers
+kube_api_endpoint: 10.255.0.112
+kube_api_internal_endpoint: 10.0.0.10
