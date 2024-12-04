@@ -30,6 +30,12 @@ EOF"
   shell : "firewall-cmd --permanent --add-port=10250/tcp --add-port=10255/tcp --add-port=443/tcp  --add-port=8472/udp --add-port=30000-32767/tcp"
   when: inventory_hostname is not in groups['k8s_masters']
 
+- name: Firewalld add http & https on public
+  shell: "firewall-cmd --permanent --zone=public --add-service=http --add-service=https"
+
+- name: Firewalld add kube network to trusted zone
+  shell: "firewall-cmd --permanent --zone=trusted --add-source=10.200.0.0/16 --add-source=10.201.0.0/16"
+
 - name: Configure SELinux for worker (port)
   shell: "semanage port -a -t {{ item.type }} -p {{ item.protocol }} {{ item.port }}"
   loop:
