@@ -1,0 +1,44 @@
+- name: Install pre-requisites
+  yum:
+    name: python3,python3-pyyaml,python3-jsonpatch,curl,tar,python3-pip
+    state: present
+
+- name: Install kubernetes module
+  pip:
+    name: kubernetes
+
+- name: check if helm is installed
+  shell: "helm version"
+  register: __helm_version
+  ignore_errors: yes
+  changed_when: False
+
+- name: Install helm
+  get_url:
+    url: "https://get.helm.sh/helm-v{{ helm_version }}-linux-amd64.tar.gz"
+    dest: /tmp/helm.tar.gz
+  when: __helm_version.rc != 0 or __helm_version.stdout.find(helm_version) == -1
+
+- name: Extract helm
+  unarchive:
+    src: /tmp/helm.tar.gz
+    dest: /tmp
+    remote_src: yes
+  when: __helm_version.rc != 0 or __helm_version.stdout.find(helm_version) == -1
+
+- name: Move helm to /usr/bin
+  command: mv /tmp/linux-amd64/helm /usr/bin
+  when: __helm_version.rc != 0 or __helm_version.stdout.find(helm_version) == -1
+
+- name: Get node list
+  shell: kubectl get nodes
+  register: __node_list
+
+- name: Check if all nodes are ready
+  shell: kubectl get nodes | grep " Ready"
+  register: __node_ready_list
+  retries: 100
+  delay: 5
+  until: __node_ready_list | count > __node_list | count
+  changed_when: __node_ready_list != 0
+

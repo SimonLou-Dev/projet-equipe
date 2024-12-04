@@ -1,7 +1,68 @@
-ansible_user: admintranet
-ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+#########################
+#   Kube init config    #
+#########################
 kubeadm_init_node: kube-master-0
 kubeadm_master_group_name: k8s_masters
 kubeadm_worker_group_name: k8s_workers
 kube_api_endpoint: 10.255.0.112
 kube_api_internal_endpoint: 10.0.0.10
+kubeadm_storage_node: kube-worker-0
+
+#########################
+#     Ansible net       #
+#########################
+ssh_bastion_name: bastion-0
+public_interface: eth1
+internal_interface: eth0
+
+#########################
+#      Helm config      #
+#########################
+helm_version: 3.16.3
+
+#########################
+#      monitoring       #
+#########################
+monitoring_namespace: monitoring
+monitoring_version: v0.78.2
+
+# Grafana
+## Ingress
+grafana_ingress_host: monitoring.groupe2.internal
+grafana_ingress_enabled: true
+grafana_ingress_class: nginx
+grafana_root_password: "pTpVaya610ZGH2HQwsd6pKhswdq"
+## Dashboard
+grafana_extra_dashboards:
+  - file: ingress-nginx.yaml
+    name: monitoring-kube-prometheus-ingress-nginx
+grafana_delete_base_dashboards:
+  - monitoring-kube-prometheus-proxy
+  - monitoring-kube-prometheus-nodes-aix
+  - monitoring-kube-prometheus-nodes-darwin
+  - monitoring-kube-prometheus-scheduler
+  - monitoring-kube-prometheus-k8s-resources-multicluster
+#Prometheus
+## Storage
+prometheus_pvc_size: 10Gi
+prometheus_storage_class: local-storage
+prometheus_storage_local_path: /data/prometheus
+
+#########################
+#     nginx ingress     #
+#########################
+ingress_class: nginx
+nginx_ingress_service_type: LoadBalancer
+nginx_ingress_service_external_ips: [ "10.0.0.30" ]
+
+#########################
+#         wazuh         #
+#########################
+
+#########################
+#       crowdsec        #
+#########################
+
+#########################
+#        database       #
+#########################

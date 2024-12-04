@@ -3,20 +3,46 @@
 #    update-cache: yes
 #    cache_valid_time: 3600
 
-- name: Install haproxy
+- name: check if requirement are present
   yum:
-    name: haproxy
-    state: present
+      name: "{{ item }}"
+      state: present
+  loop:
+      - haproxy
+      - iptables-services
+      - firewalld
+
+
+- name: iptables configuration to act as a gateway
+  shell: "{{ item }}"
+  loop:
+    - "iptables -t nat -A POSTROUTING -o {{ public_interface }} -j MASQUERADE"
+    - "iptables -A FORWARD -i {{ public_interface }} -o {{ internal_interface }} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+    - "iptables -A FORWARD -i {{ internal_interface }} -o {{ public_interface }} -j ACCEPT"
+    - "iptables-save"
 
 - name: Firewalld port configuration for haproxy
-  shell : "firewall-cmd --permanent --add-port=6443/tcp --add-port=80/tcp --add-port=5443/tcp"
-  when: inventory_hostname is not in groups['k8s_masters']
+  become: yes
+  become_method: sudo
+  shell : "firewall-cmd --permanent --add-port=6443/tcp --add-port=80/tcp --add-port=5443/tcp --add-port=2222/tcp --add-port=9000/tcp"
 
 - name: Firewalld masquerade  configuration for haproxy
   shell: "firewall-cmd --permanent --add-masquerade"
 
-- name: Selinux for grafana
-  shell: "semanage port -a -t http_port_t -p tcp 32000"
+- name: Firewalld reload
+  shell: "firewall-cmd --reload"
+
+- name: Configure SELinux for haproxy (port)
+  shell: "semanage port -a -t {{ item.type }} -p {{ item.protocol }} {{ item.port }}"
+  loop:
+    - protocol: tcp
+      port: 2222
+      type: ssh_port_t
+
+- name: Configure SELinux for haproxy (connect any)
+  shell: "setsebool -P haproxy_connect_any=1"
+
+
 
 - name: restart firewalld
   service:

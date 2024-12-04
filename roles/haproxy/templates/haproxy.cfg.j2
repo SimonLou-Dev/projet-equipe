@@ -33,15 +33,23 @@ listen stats
     stats refresh 2s
     stats auth simonlou:test
 
+listen ssh-forward
+    bind {{ ansible_eth1.ipv4.address }}:2222
+    mode tcp
+    option tcplog
+    timeout client 1h
+    timeout server 1h
+    server ssh_bastion_name {{ hostvars[ssh_bastion_name].ansible_eth0.ipv4.address }}:22 check inter 1000
+
 listen kubernetes-apiserver-https
-  bind *:6443
+  bind {{ kube_api_internal_endpoint }}:6443
   mode tcp
   option log-health-checks
   timeout client 10m
   timeout server 10m
   balance roundrobin
 {% for server in groups[kubeadm_master_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_host }}:6443 check check-ssl verify none inter 10000
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:6443 check check-ssl verify none inter 10000
 {% endfor %}
 
 listen kubernetes-ingress
@@ -52,16 +60,16 @@ listen kubernetes-ingress
   timeout server 10m
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_host }}:80 check inter 1000
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:80 check inter 1000
 {% endfor %}
 
 listen kubernetes-ingress-https
-  bind *:80
+  bind *:443
   mode tcp
   option log-health-checks
   timeout client 10m
   timeout server 10m
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_host }}:443 check inter 1000
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:443 check inter 1000
 {% endfor %}

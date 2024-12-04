@@ -1,0 +1,19 @@
+- name: test connection to all hosts
+  hosts: all
+  tasks:
+    - name: ping all hosts
+      ping:
+
+- name : Installing HAProxy
+  hosts: haproxy
+  become_method: sudo
+  become: true
+  roles:
+    - haproxy
+
+- name: Base Hardening
+  hosts: all
+  become_method: sudo
+  become: yes
+  roles:
+    - hardening

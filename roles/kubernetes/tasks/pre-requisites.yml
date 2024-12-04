@@ -27,7 +27,15 @@ EOF"
   when: inventory_hostname is in groups['k8s_masters']
 
 - name: Firewalld port configuration for kube workers
-  shell : "firewall-cmd --permanent --add-port=10250/tcp --add-port=10255/tcp --add-port=8472/udp --add-port=30000-32767/tcp"
+  shell : "firewall-cmd --permanent --add-port=10250/tcp --add-port=10255/tcp --add-port=443/tcp  --add-port=8472/udp --add-port=30000-32767/tcp"
+  when: inventory_hostname is not in groups['k8s_masters']
+
+- name: Configure SELinux for worker (port)
+  shell: "semanage port -a -t {{ item.type }} -p {{ item.protocol }} {{ item.port }}"
+  loop:
+    - protocol: tcp
+      port: 443
+      type: http_port_t
   when: inventory_hostname is not in groups['k8s_masters']
 
 - name: Firewalld masquerade  configuration for kube workers

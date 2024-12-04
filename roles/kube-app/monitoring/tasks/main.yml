@@ -1,0 +1,81 @@
+- name: Add helm chart repo
+  kubernetes.core.helm_repository:
+    name: prometheus-community
+    repo_url: https://prometheus-community.github.io/helm-charts
+
+
+- name: check if prometheus persistent volume exists
+  kubernetes.core.k8s_info:
+    kind: PersistentVolume
+    name: prometheus
+  register: __prometheus_pv
+
+- name: Create prometheus persistent volume
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: prometheus
+      spec:
+        capacity:
+          storage: "{{ prometheus_pvc_size }}"
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: "{{ prometheus_storage_class }}"
+        hostPath:
+          path: "{{ prometheus_storage_local_path }}"
+  when: __prometheus_pv.resources | length == 0
+
+- name: Check if monitoring namespace exists
+  kubernetes.core.k8s_info:
+    kind: namespace
+    name: monitoring
+  register: __monitoring_namespace
+
+- name: create hostpath for prometheus
+  file:
+    state: directory
+    mode: 1750
+    path: "{{ prometheus_storage_local_path }}"
+  when: prometheus_storage_class == "local-path"
+  delegate_to: "{{ kubeadm_storage_node }}"
+
+- name: Template values for helm chart
+  template:
+    src: values.yaml.j2
+    dest: /tmp/monitoring-values.yaml
+
+- name: Install or Update prometheus community on kubernetes
+  kubernetes.core.helm:
+    name: monitoring
+    chart_ref: prometheus-community/kube-prometheus-stack
+    namespace: monitoring
+    create_namespace: "{{ __monitoring_namespace.resources | length == 0 }}"
+    state: present
+    values_files:
+      - /tmp/monitoring-values.yaml
+
+- name: add Dashboards
+  include_tasks: dashboards.yml
+  loop: "{{ grafana_extra_dashboards }}"
+
+- name: Get configmap
+  kubernetes.core.k8s_info:
+    kind: ConfigMap
+    namespace: monitoring
+  register: __configmap_check
+
+- name: delete base dashboards
+  shell: "kubectl delete configmap {{ item }} -n monitoring"
+  when: __configmap_check.resources | map(attribute='metadata.name') | list | intersect([item]) | length > 0
+  loop: "{{ grafana_delete_base_dashboards }}"
+
+
+- name: Delete temporary values file
+  file:
+    state: absent
+    path: /tmp/monitoring-values.yaml
+
+

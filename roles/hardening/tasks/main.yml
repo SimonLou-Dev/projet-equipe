@@ -1,0 +1,26 @@
+
+- name: Install base sec tools
+  yum:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - iptables-services
+    - firewalld
+
+- name: modify sshd config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - regexp: "^#?PermitRootLogin"
+      line: "PermitRootLogin no"
+    - regexp: "^#?PasswordAuthentication"
+      line: "PasswordAuthentication no"
+    - regexp: "^#?ListenAddress ::"
+      line: "ListenAddress {{ ansible_eth0.ipv4.address }}"
+  notify: restart sshd
+
+
+
+

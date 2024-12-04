@@ -1,0 +1,9 @@
+---
+# tasks file for roles/volumes
+
+- name: "Install partitions"
+  include_tasks: install_partitions.yml
+  loop: "{{ partitions }}"
+  loop_control:
+    index_var: index
+    loop_var: item

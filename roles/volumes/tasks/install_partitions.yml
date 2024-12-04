@@ -1,0 +1,27 @@
+- name: "Create partition {{ index + 1 }} on {{ item.disk }}"
+  parted:
+    device: "{{ item.disk }}"
+    number: "{{ index + 1 }}"
+    state: present
+    part_start: "{{ item.part_start }}"
+    part_end: "{{ item.part_end }}"
+
+- name: "Formating {{ item.disk }}{{ index + 1 }}"
+  filesystem:
+    fstype: "{{ item.format }}"
+    dev: "{{ item.disk }}{{ index + 1 }}"
+
+- name: "Creating {{ item.path }}"
+  file:
+    state: directory
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+
+- name: "Mounting {{ item.disk }}{{ index + 1 }} to {{ item.path }}"
+  mount:
+    fstype: "{{ item.format }}"
+    src: "{{ item.disk }}{{ index + 1 }}"
+    path: "{{ item.path }}"
+    state: mounted

@@ -1,0 +1,57 @@
+- name: Add helm chart repo
+  kubernetes.core.helm_repository:
+    name: ingress-nginx
+    repo_url: https://kubernetes.github.io/ingress-nginx
+
+- name: Check if ingress-nginx namespace exists
+  kubernetes.core.k8s_info:
+    kind: namespace
+    name: ingress-nginx
+  register: __nginx_ingress_namespace
+
+- name: check if monitoring namespace exists
+  kubernetes.core.k8s_info:
+    kind: namespace
+    name: monitoring
+  register: __monitoring_namespace
+
+- name: Deploy ingress-nginx (without monitoring)
+  when: __monitoring_namespace.resources | length == 0
+  kubernetes.core.helm:
+    name: ingress-nginx
+    chart_ref: ingress-nginx/ingress-nginx
+    namespace: ingress-nginx
+    create_namespace: "{{ __nginx_ingress_namespace.resources | length == 0 }}"
+    state: present
+    values:
+      controller:
+        admissionWebhooks:
+          enabled: false
+        service:
+          type: "{{ nginx_ingress_service_type }}"
+          externalIPs: "{{ nginx_ingress_service_external_ips }}"
+
+- name: Deploy ingress-nginx (with monitoring)
+  when: __monitoring_namespace.resources | length != 0
+  kubernetes.core.helm:
+    name: ingress-nginx
+    chart_ref: ingress-nginx/ingress-nginx
+    namespace: ingress-nginx
+    create_namespace: "{{ __nginx_ingress_namespace.resources | length == 0 }}"
+    state: present
+    values:
+      controller:
+        admissionWebhooks:
+          enabled: false
+        service:
+          type: "{{ nginx_ingress_service_type }}"
+          externalIPs: "{{ nginx_ingress_service_external_ips }}"
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: true
+            release: prometheus
+            namespace: monitoring
+
+
+

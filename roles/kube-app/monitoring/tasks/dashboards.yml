@@ -1,0 +1,26 @@
+- name: "Check if dashboard exist"
+  kubernetes.core.k8s_info:
+      kind: ConfigMap
+      name: "{{ item.name }}"
+      namespace: monitoring
+  register: __dashboard
+  ignore_errors: yes
+  changed_when: false
+
+- name: "Copy file for dashboard {{ item.name }}"
+  copy:
+    src: "dashboards/{{ item.file }}"
+    dest: "/tmp/{{ item.file }}"
+  when: __dashboard.resources | length == 0
+
+- name: "Create dashboard {{ item.name }}"
+  shell: "kubectl apply -f /tmp/{{ item.file }}"
+  when: __dashboard.resources | length == 0
+
+- name: "Delete file for dashboard {{ item.name }}"
+  file:
+    state: absent
+    path: "/tmp/{{ item.file }}"
+  when: __dashboard.resources | length == 0
+
+

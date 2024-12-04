@@ -1,3 +1,9 @@
+- name: test connection to all hosts
+  hosts: all
+  tasks:
+    - name: ping all hosts
+      ping:
+
 - name : Installing HAProxy
   hosts: a #haproxy
   become_method: sudo
@@ -5,8 +11,28 @@
   roles:
     - haproxy
 
+- name: Base Hardening
+  hosts: a #all
+  become_method: sudo
+  become: yes
+  roles:
+      - hardening
+
+- name: Install volumes on workers
+  hosts: a #k8s_workers
+  become_method: sudo
+  become: yes
+  roles:
+      - volumes
+  vars:
+    partitions: # Ici sur 50 GO
+      - { path: "/var/lib/kubelet", owner: "root", group: "root", mode: "0755", part_start: "0%", part_end: "50%", format: "ext4", disk: "/dev/vdb" } #25Go
+      - { path: "/data", owner: "root", group: "root", mode: "0755", part_start: "51%", part_end: "76%", format: "ext4", disk: "/dev/vdb" } # 12.5Go
+      - { path: "/var/lib/containerd", owner: "root", group: "root", mode: "0755", part_start: "77%", part_end: "92%", format: "ext4", disk: "/dev/vdb" } # 7.5Go
+      - { path: "/run/containerd", owner: "root", group: "root", mode: "0755", part_start: "93%", part_end: "98%", format: "ext4", disk: "/dev/vdb" } # 2.5Go
+
 - name: Install kubernetes master init
-  hosts:  k8s_workers #k8s_masters, k8s_workers
+  hosts:  a #k8s_masters, k8s_workers
   become_method: sudo
   become: yes
   collections:
@@ -16,3 +42,16 @@
     - "100%"
   roles:
     - kubernetes
+
+- name: Install kubernetes app
+  hosts: kube-master-0
+  become_method: sudo
+  become: yes
+  collections:
+      - kubernetes.core #ansible-galaxy collection install kubernetes.core
+  roles:
+    - tools/helm
+    #- kube-app/nginx
+    - kube-app/monitoring
+    - kube-app/nginx # Permet de les réinstaller avec le monitoring
+

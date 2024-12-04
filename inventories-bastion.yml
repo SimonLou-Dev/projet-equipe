@@ -1,0 +1,37 @@
+all:
+  vars:
+    ansible_user: admintranet
+    ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+
+  children:
+    haproxy:
+      hosts:
+        proxy-0:
+          ansible_host: 10.0.0.10
+    kubernetes:
+      children:
+        k8s_masters:
+          hosts:
+            kube-master-0:
+              ansible_host: 10.0.0.20
+        k8s_workers:
+          hosts:
+            kube-worker-0:
+              ansible_host: 10.0.0.30
+    bastions:
+      vars:
+        ansible_port: 2222
+      hosts:
+        bastion-0:
+          ansible_host: 10.255.0.112
+jump_bastion:
+  vars:
+    ansible_ssh_common_args: >-
+      -J admintranet@10.255.0.112:2222
+      -o StrictHostKeyChecking=no
+  hosts:
+    kube-worker-0:
+    kube-master-0:
+    proxy-0:
+
+
