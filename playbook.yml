@@ -19,7 +19,7 @@
       - hardening/rocky
 
 - name: Hardening proxmox
-  hosts: proxmox
+  hosts: a  #proxmox
   become_method: sudo
   become: yes
   roles:
@@ -62,5 +62,5 @@
     - tools/helm
     #- kube-app/nginx
     - kube-app/monitoring
-    - kube-app/nginx # Permet de les réinstaller avec le monitoring
+    #- kube-app/nginx # Permet de les réinstaller avec le monitoring
 
