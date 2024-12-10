@@ -12,11 +12,13 @@
     - haproxy
 
 - name: Base Hardening
-  hosts: a #all
+  hosts: a #all !proxmox
   become_method: sudo
   become: yes
   roles:
-      - hardening
+      - hardening/rocky
+
+
 
 - name: Install volumes on workers
   hosts: a #k8s_workers

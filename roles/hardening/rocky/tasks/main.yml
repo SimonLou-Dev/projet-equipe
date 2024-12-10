@@ -22,5 +22,16 @@
   notify: restart sshd
 
 
+- name: set sudo password for user
+  user:
+    name: "{{ ansible_user }}"
+    password: "{{ ansible_sudo_pass | password_hash('sha512') }}"
+
+- name: set sudoers
+  lineinfile:
+    regexp: "^{{ ansible_user }} ALL"
+    line: "{{ ansible_user }} ALL=(ALL) ALL"
+    path: /etc/sudoers
+
 
 

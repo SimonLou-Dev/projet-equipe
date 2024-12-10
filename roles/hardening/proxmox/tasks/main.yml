@@ -1,0 +1,44 @@
+- name: set arp static for gateway
+  shell: "arp -s {{ proxmox_gateway_ip }} {{ proxmox_gateway_mac }}"
+
+- name: generate custom certificate
+  shell: "openssl req -x509 -nodes -days 365 -m pem -newkey rsa:2048 \
+    -keyout /etc/ssl/private/proxmox.key \
+    -out /etc/ssl/certs/proxmox.pem \
+    -subj '/CN=proxmox' \
+    -addext 'subjectAltName=DNS:localhost,DNS:{{ *.groupe2.internal }},IP:10.0.0.1,IP:{{ proxmox_gateway_ip }}'"
+
+- name: Install certs
+  shell: "pvenode cert set --force /etc/ssl/certs/proxmox.pem /etc/ssl/private/proxmox.key"
+
+- name: Restart pveproxy
+  systemd:
+    name: pveproxy
+    state: restarted
+
+- name: set password for root
+  user:
+    name: root
+    password: "{{ proxmox_0_password | password_hash('sha512') }}"
+
+- name: modify sshd config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - regexp: "^#?PermitRootLogin"
+      line: "PermitRootLogin ProhibitPassword"
+    - regexp: "^#?PasswordAuthentication"
+      line: "PasswordAuthentication no"
+    - regexp: "^#?ChallengeResponseAuthentication"
+      line: "ChallengeResponseAuthentication no"
+    - regexp: "^#?UsePAM"
+      line: "UsePAM yes"
+    - regexp: "^#?Port"
+      line: "Port 2223"
+
+- name: restart sshd
+  systemd:
+    name: sshd
+    state: restarted
