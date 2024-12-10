@@ -1,28 +1,49 @@
 all:
   vars:
-    ansible_user: admintranet
     ansible_ssh_private_key_file: ~/.ssh/id_ed25519
-
   children:
+    proxmox:
+      hosts:
+        vars:
+          ansible_user: "{{ proxmox_0_user }}"
+          ansible_password: "{{ proxmox_0_password }}"
+        proxmox-0:
+          ansible_host: 10.255.0.102
     haproxy:
       hosts:
         proxy-0:
+          vars:
+            ansible_user: "{{ proxy_0_user }}"
+            ansible_ssh_private_key_file:
+            ansible_sudo_pass: "{{ proxy_0_sudo_password }}"
           ansible_host: 10.0.0.10
     kubernetes:
       children:
         k8s_masters:
           hosts:
             kube-master-0:
+              vars:
+                ansible_user: "{{ kube_master_0_user }}"
+                ansible_ssh_private_key_file:
+                ansible_sudo_pass: "{{ kube_master_0_sudo_password }}"
               ansible_host: 10.0.0.20
         k8s_workers:
           hosts:
             kube-worker-0:
+              vars:
+                ansible_user: "{{ kube_worker_0_user }}"
+                ansible_ssh_private_key_file:
+                ansible_sudo_pass: "{{ kube_worker_0_sudo_password }}"
               ansible_host: 10.0.0.30
     bastions:
       vars:
         ansible_port: 2222
       hosts:
         bastion-0:
+          vars:
+            ansible_user: "{{ kube_bastion_0_user }}"
+            ansible_ssh_private_key_file:
+            ansible_sudo_pass: "{{ kube_bastion_0_sudo_password }}"
           ansible_host: 10.255.0.112
 jump_bastion:
   vars:
