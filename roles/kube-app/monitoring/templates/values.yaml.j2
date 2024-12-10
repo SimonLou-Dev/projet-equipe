@@ -22,3 +22,14 @@ prometheus:
             path: "{{ prometheus_storage_local_path }}"
         metadata:
           name: prometheus
+altermanager:
+  config:
+    route:
+      receiver: 'discord'
+      group_by: ['namespace',  'alertname']
+    receivers:
+    - name: 'null'
+    - name: 'discord'
+      discord_config:
+      - webhook_url: "{{ alert_manager_webhook_url }}"
+        title: "{{'{{'}} template 'discord.default.title' . {{'}}'}} {{ alert_manager_webhook_mention }}"
