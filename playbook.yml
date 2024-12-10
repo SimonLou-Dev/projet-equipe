@@ -18,6 +18,13 @@
   roles:
       - hardening/rocky
 
+- name: Hardening proxmox
+  hosts: proxmox
+  become_method: sudo
+  become: yes
+  roles:
+      - hardening/proxmox
+
 
 
 - name: Install volumes on workers

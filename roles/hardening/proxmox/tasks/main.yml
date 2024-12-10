@@ -1,25 +1,41 @@
+- name: Install net-tools
+  apt:
+    name: net-tools
+    state: present
+
 - name: set arp static for gateway
   shell: "arp -s {{ proxmox_gateway_ip }} {{ proxmox_gateway_mac }}"
 
+- name: set arp static for project
+  shell: "arp -s {{ proxmox_project_ip }} {{ proxmox_project_mac }}"
+
+- name: check if cert exists
+  stat:
+    path: /etc/ssl/certs/proxmox.pem
+  register: cert
+
 - name: generate custom certificate
-  shell: "openssl req -x509 -nodes -days 365 -m pem -newkey rsa:2048 \
+  shell: "openssl req -x509 -noenc -days 365 -newkey rsa:2048 \
     -keyout /etc/ssl/private/proxmox.key \
     -out /etc/ssl/certs/proxmox.pem \
     -subj '/CN=proxmox' \
-    -addext 'subjectAltName=DNS:localhost,DNS:{{ *.groupe2.internal }},IP:10.0.0.1,IP:{{ proxmox_gateway_ip }}'"
+    -addext 'subjectAltName=DNS:localhost,DNS:*.groupe2.internal,IP:10.0.0.1,IP:{{ proxmox_gateway_ip }}'"
+  when: not cert.stat.exists
 
 - name: Install certs
   shell: "pvenode cert set --force /etc/ssl/certs/proxmox.pem /etc/ssl/private/proxmox.key"
+  when: not cert.stat.exists
 
 - name: Restart pveproxy
   systemd:
     name: pveproxy
     state: restarted
+  when: not cert.stat.exists
 
 - name: set password for root
   user:
     name: root
-    password: "{{ proxmox_0_password | password_hash('sha512') }}"
+    password: "{{ ansible_sudo_pass | password_hash('sha512') }}"
 
 - name: modify sshd config
   lineinfile:
@@ -28,7 +44,7 @@
     line: "{{ item.line }}"
   loop:
     - regexp: "^#?PermitRootLogin"
-      line: "PermitRootLogin ProhibitPassword"
+      line: "PermitRootLogin prohibit-password"
     - regexp: "^#?PasswordAuthentication"
       line: "PasswordAuthentication no"
     - regexp: "^#?ChallengeResponseAuthentication"
