@@ -54,12 +54,10 @@
 
 - name: Install kubernetes app
   hosts: kube-master-0
-  become_method: sudo
-  become: yes
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
-    - tools/helm
+    #- tools/helm
     #- kube-app/nginx
     - kube-app/monitoring
     #- kube-app/nginx # Permet de les réinstaller avec le monitoring

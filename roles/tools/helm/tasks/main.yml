@@ -1,9 +1,13 @@
 - name: Install pre-requisites
+  become: yes
+  become_method: sudo
   yum:
     name: python3,python3-pyyaml,python3-jsonpatch,curl,tar,python3-pip
     state: present
 
 - name: Install kubernetes module
+  become: yes
+  become_method: sudo
   pip:
     name: kubernetes
 
@@ -27,6 +31,8 @@
   when: __helm_version.rc != 0 or __helm_version.stdout.find(helm_version) == -1
 
 - name: Move helm to /usr/bin
+  become: yes
+  become_method: sudo
   command: mv /tmp/linux-amd64/helm /usr/bin
   when: __helm_version.rc != 0 or __helm_version.stdout.find(helm_version) == -1
 

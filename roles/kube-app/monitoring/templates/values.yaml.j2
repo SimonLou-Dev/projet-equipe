@@ -22,14 +22,24 @@ prometheus:
             path: "{{ prometheus_storage_local_path }}"
         metadata:
           name: prometheus
-altermanager:
+alertmanager:
+  enabled: true
   config:
+    global:
+      resolve_timeout: 10m
     route:
       receiver: 'discord'
-      group_by: ['namespace',  'alertname']
+      group_by: ['namespace','alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+      - receiver: 'null'
+        matchers:
+          - alertname = "Watchdog"
     receivers:
     - name: 'null'
     - name: 'discord'
-      discord_config:
+      discord_configs:
       - webhook_url: "{{ alert_manager_webhook_url }}"
         title: "{{'{{'}} template 'discord.default.title' . {{'}}'}} {{ alert_manager_webhook_mention }}"
