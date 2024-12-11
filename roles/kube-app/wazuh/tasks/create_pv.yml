@@ -1,0 +1,35 @@
+- name: "check if wazuh {{ item.name }} exist"
+  kubernetes.core.k8s_info:
+    kind: PersistentVolume
+    name: "{{ item.name }}"
+  register: __wazuh_pv
+
+- name: create path for wazuh {{ item.name }}
+  become: yes
+  become_method: sudo
+  file:
+    state: directory
+    mode: 1755
+    path: "{{ item.path }}"
+
+# Must create pv with item.name, item.size, and item.claim_name
+- name: "Create wazuh {{ item.name }}"
+  when: __wazuh_pv.resources | length == 0
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: "{{ item.name }}"
+      spec:
+        capacity:
+          storage: "{{ item.size }}"
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: "wazuh-storage"
+        claimRef:
+          namespace: wazuh
+          name: "{{ item.claim_name }}"
+        hostPath:
+          path: "{{ item.path}}"

@@ -1,0 +1,85 @@
+- name: check if wazuh namespace exists
+  kubernetes.core.k8s_info:
+    kind: namespace
+    name: wazuh
+  register: __wazuh_namespace
+  changed_when: False
+  ignore_errors: yes
+
+- name: check if git exists
+  command: git --version
+  register: __git_exists
+  ignore_errors: yes
+  changed_when: False
+
+- name: install git
+  become: yes
+  become_method: sudo
+  yum:
+    name: git
+    state: present
+  when: __git_exists.rc != 0
+
+- name: check if repository is clone
+  stat:
+    path: /tmp/wazuh-kubernetes
+  register: __wazuh_repo
+
+- name: delete repository
+  become: yes
+  become_method: sudo
+  command: rm -rf /tmp/wazuh-kubernetes
+  when: __wazuh_repo.stat.exists == True
+
+- name: install wazuh
+  #when: __wazuh_namespace.resources | length == 0
+  become: yes
+  become_method: sudo
+  block:
+    - name: clone wazuh repo
+      git:
+        repo: https://github.com/wazuh/wazuh-kubernetes.git
+        dest: /tmp/wazuh-kubernetes
+
+    - name: generate index certificates
+      command: /tmp/wazuh-kubernetes/wazuh/certs/indexer_cluster/generate_certs.sh
+
+    - name: generate dashboard certificates
+      command: /tmp/wazuh-kubernetes/wazuh/certs/dashboard_http/generate_certs.sh
+
+    - name: changing ownership of certificates
+      command: chown -R admintranet:admintranet /tmp/wazuh-kubernetes/wazuh/certs
+
+    - name: Modify provisioner class
+      lineinfile:
+        path: /tmp/wazuh-kubernetes/envs/local-env/storage-class.yaml
+        regexp: "provisioner: kubernetes.io/no-provisioner"
+        line: "provisioner: microk8s.io/hostpath"
+
+    - name: change version in deployment with replace
+      become: yes
+      become_method: sudo
+      loop:
+        - { path: "wazuh_managers/wazuh-worker-sts.yaml", container: "wazuh/wazuh-manager" }
+        - { path: "wazuh_managers/wazuh-master-sts.yaml", container: "wazuh/wazuh-manager" }
+        - { path: "indexer_stack/wazuh-indexer/cluster/indexer-sts.yaml", container: "wazuh/wazuh-indexer" }
+        - { path: "indexer_stack/wazuh-dashboard/dashboard-svc.yaml", container: "wazuh/wazuh-dashboard" }
+      replace:
+        path: "/tmp/wazuh-kubernetes/wazuh/{{ item.path }}"
+        regexp: "image: wazuh/{{ item.container }}:.*"
+        replace: "image: {{ item.container }}:4.9.2"
+
+
+
+    - name: build wazuh manifest with kustomize
+      shell: "kustomize build /tmp/wazuh-kubernetes/envs/local-env > /tmp/wazuh.yaml"
+
+    - name: apply wazuh
+      shell: "kubectl apply -f /tmp/wazuh.yaml"
+
+- name: Creating pv
+  include_tasks: create_pv.yml
+  loop:
+    - { name: "wazuh-index-pv", size: "10Gi", claim_name: "wazuh-indexer-wazuh-indexer-0", path: "{{ wazuh_pv_index_path }}" }
+    - { name: "wazuh-manager-master-0-pv", size: "5Gi", claim_name: "wazuh-manager-master-wazuh-manager-master-0",path: "{{ wazuh_pv_manager_master_path }}" }
+    - { name: "wazuh-manager-worker-0-pv", size: "5Gi", claim_name: "wazuh-manager-worker-wazuh-manager-worker-0",path: "{{ wazuh_pv_manager_worker_path }}" }

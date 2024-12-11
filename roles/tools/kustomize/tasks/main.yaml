@@ -1,0 +1,37 @@
+- name: check if kustomize exist
+  become: yes
+  become_method: sudo
+  command: kustomize version
+  register: __kustomize_install
+  ignore_errors: yes
+  changed_when: False
+
+- name: download kustomize
+  become: yes
+  become_method: sudo
+  get_url:
+    url: "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+    dest: /tmp/install_kustomize.sh
+    mode: 0755
+  when: __kustomize_install.rc != 0
+
+- name: check if kustomize file exist
+  become: yes
+  become_method: sudo
+  stat:
+    path: /tmp/kustomize
+  ignore_errors: yes
+  changed_when: False
+  register: __kustomize_file
+
+- name: install kustomize
+  become: yes
+  become_method: sudo
+  shell: /tmp/install_kustomize.sh
+  when: __kustomize_file.stat.exists == False and __kustomize_install.rc != 0
+
+- name: modify kustomize path
+  become: yes
+  become_method: sudo
+  command: mv /tmp/kustomize /usr/bin/kustomize
+  when: __kustomize_install.rc != 0

@@ -14,6 +14,7 @@
     path: /etc/ssl/certs/proxmox.pem
   register: cert
 
+# openssl req -x509 -noenc -days 365 -newkey rsa:2048     -keyout /etc/ssl/private/proxmox.key     -out /etc/ssl/certs/proxmox.pem     -subj '/CN=proxmox'     -addext 'subjectAltName=DNS:localhost,DNS:*.groupe2.internal,IP:10.0.0.1,IP:10.255.0.202,DNS:pve,DNS:pve.groupe2.local,IP:127.0.0.1'
 - name: generate custom certificate
   shell: "openssl req -x509 -noenc -days 365 -newkey rsa:2048 \
     -keyout /etc/ssl/private/proxmox.key \
