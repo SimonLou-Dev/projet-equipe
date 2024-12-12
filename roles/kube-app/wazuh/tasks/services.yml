@@ -1,0 +1,33 @@
+- name: "get service {{ item.name }}"
+  kubernetes.core.k8s_info:
+    kind: service
+    name: "{{ item.name }}"
+    namespace: wazuh
+  register: __service
+  changed_when: False
+  ignore_errors: yes
+
+- name: debug
+  debug:
+    var: __service
+
+- name: "Edit service {{ item.name }}"
+  when: __service.resources | length > 0
+  kubernetes.core.k8s:
+    state: present
+    definition:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: "{{ item.name }}"
+      namespace: wazuh
+    spec:
+      type: "{{ item.type }}"
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+      selector:
+      app: "{{ item.name }}"
+      loadBalancerIP: "{{ item.ip }}"
+

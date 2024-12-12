@@ -1,0 +1,50 @@
+- name: add key for wazuh
+  rpm_key:
+    key: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    state: present
+
+- name: check if wazuh repo exist
+  yum_repository:
+    name: wazuh
+  register: __wazuh_repo
+  changed_when: False
+  ignore_errors: yes
+
+- debug:
+    var: __wazuh_repo
+
+- name: add wazuh repo
+  when: __wazuh_repo is not defined
+  yum_repository:
+    name: wazuh
+    description: Wazuh repository
+    baseurl: https://packages.wazuh.com/yum/el/8/x86_64
+    gpgcheck: yes
+    gpgkey: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    enabled: yes
+    state: present
+
+- name: reactive repo
+  when: __wazuh_repo is defined
+  yum_repository:
+    name: wazuh
+    enabled: yes
+    state: present
+
+- name: install wazuh agent
+  yum:
+    name: wazuh-agent
+    state: present
+
+- name: restart wazuh
+  service:
+    name: wazuh-agent
+    state: restarted
+    enabled: yes
+
+- name: disable repo
+  yum_repository:
+    name: wazuh
+    enabled: no
+    state: present
+

@@ -21,7 +21,6 @@ EOF"
 - name: Enable kernel module br_netfilter
   shell: "modprobe br_netfilter"
 
-
 - name: Firewalld port configuration for kube master
   shell: "firewall-cmd --permanent --add-port=6443/tcp --add-port=2379-2380/tcp --add-port=10250/tcp --add-port=10251/tcp --add-port=10252/tcp --add-port=10255/tcp --add-port=8472/udp"
   when: inventory_hostname is in groups['k8s_masters']

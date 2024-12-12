@@ -110,6 +110,14 @@
   when: ansible_hostname == kubeadm_init_node
   delegate_to: "{{ kubeadm_init_node }}"
 
+- name: download CRDs Prometheus
+  get_url:
+    url: ' https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.78.2/stripped-down-crds.yaml'
+    dest: /tmp/crd-prom.yaml
+
+- name: install CRDs Prometheus
+  shell: "kubectl create -f /tmp/crd-prom.yaml"
+
 - name: Clean up
   when: ansible_hostname == kubeadm_init_node
   delegate_to: "{{ kubeadm_init_node }}"
@@ -119,4 +127,5 @@
   loop:
     - /tmp/flannel.yml
     - /tmp/local-storage.yml
+    - /tmp/crd-prom.yaml
 

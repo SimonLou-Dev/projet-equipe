@@ -32,7 +32,7 @@
   when: __wazuh_repo.stat.exists == True
 
 - name: install wazuh
-  #when: __wazuh_namespace.resources | length == 0
+  when: __wazuh_namespace.resources | length == 0
   become: yes
   become_method: sudo
   block:
@@ -69,13 +69,19 @@
         regexp: "image: wazuh/{{ item.container }}:.*"
         replace: "image: {{ item.container }}:4.9.2"
 
-
-
     - name: build wazuh manifest with kustomize
       shell: "kustomize build /tmp/wazuh-kubernetes/envs/local-env > /tmp/wazuh.yaml"
 
     - name: apply wazuh
       shell: "kubectl apply -f /tmp/wazuh.yaml"
+
+    - name: clean up
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/wazuh-kubernetes
+        - /tmp/wazuh.yaml
 
 - name: Creating pv
   include_tasks: create_pv.yml
@@ -83,3 +89,45 @@
     - { name: "wazuh-index-pv", size: "10Gi", claim_name: "wazuh-indexer-wazuh-indexer-0", path: "{{ wazuh_pv_index_path }}" }
     - { name: "wazuh-manager-master-0-pv", size: "5Gi", claim_name: "wazuh-manager-master-wazuh-manager-master-0",path: "{{ wazuh_pv_manager_master_path }}" }
     - { name: "wazuh-manager-worker-0-pv", size: "5Gi", claim_name: "wazuh-manager-worker-wazuh-manager-worker-0",path: "{{ wazuh_pv_manager_worker_path }}" }
+
+- name: Edit services
+  include_tasks: edit_services.yml
+  loop:
+    - { name: "wazuh-indexer", type: "LoadBalancer", ip: [''] }
+    - { name: "wazuh-manager-master", type: "LoadBalancer", ip: ['']}
+    - { name: "wazuh-manager", type: "LoadBalancer", ip: ['']}
+
+- name: Check if ingress exist
+  kubernetes.core.k8s_info:
+    kind: ingress
+    name: wazuh-ingress
+    namespace: wazuh
+  register: __wazuh_ingress
+  changed_when: False
+  ignore_errors: yes
+
+- name: Create ingress
+  when: __wazuh_ingress.resources | length == 0
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: wazuh-ingress
+        namespace: wazuh
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+      spec:
+        ingressClassName: "nginx"
+        rules:
+          - host: "{{ wazuh_ingress_host }}"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: wazuh-dashboard
+                      port:
+                        number: 80
