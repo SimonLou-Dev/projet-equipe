@@ -42,15 +42,16 @@ alertmanager:
     - name: 'discord'
       discord_configs:
       - webhook_url: "{{ alert_manager_webhook_url }}"
-#        title: "{% raw %}  Fire! {{ .GroupLabels.SortedPairs.Values | join " " }} {% endraw %} {{ alert_manager_webhook_mention }} {% raw %} {{ end }} {% endraw %}"
-#        message: "{% raw %}{{ range .Alerts.Firing }}
-                                  Alert: **{{ printf "%.150s" .Annotations.summary }}** ({{ .Labels.severity }})
-                                  Description: {{ printf "%.150s" .Annotations.description }}
-                                  Alertname: {{ .Labels.alertname }}
-                                  Namespace: {{ .Labels.namespace }}
-                                  Service: {{ .Labels.service }}
+        title: '{% raw %}  Fire! {{ .GroupLabels.SortedPairs.Values | join " " }} {% endraw %} '
+        message: '{% raw %}{{ range .Alerts.Firing }}
+                                  **__Alert:__** **{{ printf "%.150s" .Annotations.summary }}** ({{ .Labels.severity }})\n\n
+                                  **__Description:__** ```{{ printf "%.150s" .Annotations.description }}```\n
+                                  **__Alertname:__** {{ .Labels.alertname }}\n
+                                  **__Namespace:__** {{ .Labels.namespace }}\n
+                                  **__Service:__** {{ .Labels.service }}\n
+                                  {% endraw %} {{ alert_manager_webhook_mention }} {%raw%}
                                 {{ end }}
 
                                 {{ if gt (len .Alerts.Resolved) 0 }}
                                     Also {{ .Alerts.Resolved | len }} resolved alerts.
-                                {{ end }}{% endraw %}"
+                                {{ end }}{% endraw %}'

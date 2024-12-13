@@ -32,7 +32,7 @@
   when: __wazuh_repo.stat.exists == True
 
 - name: install wazuh
-  when: __wazuh_namespace.resources | length == 0
+  #when: __wazuh_namespace.resources | length == 0
   become: yes
   become_method: sudo
   block:
@@ -63,17 +63,41 @@
         - { path: "wazuh_managers/wazuh-worker-sts.yaml", container: "wazuh/wazuh-manager" }
         - { path: "wazuh_managers/wazuh-master-sts.yaml", container: "wazuh/wazuh-manager" }
         - { path: "indexer_stack/wazuh-indexer/cluster/indexer-sts.yaml", container: "wazuh/wazuh-indexer" }
-        - { path: "indexer_stack/wazuh-dashboard/dashboard-svc.yaml", container: "wazuh/wazuh-dashboard" }
+        - { path: "indexer_stack/wazuh-dashboard/dashboard-deploy.yaml", container: "wazuh/wazuh-dashboard" }
       replace:
         path: "/tmp/wazuh-kubernetes/wazuh/{{ item.path }}"
-        regexp: "image: wazuh/{{ item.container }}:.*"
-        replace: "image: {{ item.container }}:4.9.2"
+        regexp: "{{ item.container }}:5.0.0"
+        replace: "{{ item.container }}:4.9.2"
+
+    - name: Edit service (add external IP) [LB]
+      lineinfile:
+        path: "/tmp/wazuh-kubernetes/wazuh/{{ item.path }}"
+        insertafter: "EOF"
+        regexp: "^"
+        line: "  externalIPs: ['{{ item.ip }}']"
+      loop:
+        - { path: "wazuh_managers/wazuh-master-svc.yaml",  ip: "10.0.0.30" }
+        - { path: "indexer_stack/wazuh-indexer/cluster/indexer-api-svc.yaml",  ip: "10.0.0.30" }
+        - { path: "wazuh_managers/wazuh-workers-svc.yaml", ip: "10.0.0.30" }
+
+    - name: Edit service [ClusterIP]
+      replace:
+        path: /tmp/wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-svc.yaml
+        regexp: "LoadBalancer"
+        replace: "ClusterIP"
 
     - name: build wazuh manifest with kustomize
       shell: "kustomize build /tmp/wazuh-kubernetes/envs/local-env > /tmp/wazuh.yaml"
 
     - name: apply wazuh
       shell: "kubectl apply -f /tmp/wazuh.yaml"
+
+    - name: Creating pv
+      include_tasks: create_pv.yml
+      loop:
+        - { name: "wazuh-index-pv", size: "10Gi", claim_name: "wazuh-indexer-wazuh-indexer-0", path: "{{ wazuh_pv_index_path }}" }
+        - { name: "wazuh-manager-master-0-pv", size: "5Gi", claim_name: "wazuh-manager-master-wazuh-manager-master-0",path: "{{ wazuh_pv_manager_master_path }}" }
+        - { name: "wazuh-manager-worker-0-pv", size: "5Gi", claim_name: "wazuh-manager-worker-wazuh-manager-worker-0",path: "{{ wazuh_pv_manager_worker_path }}" }
 
     - name: clean up
       file:
@@ -82,20 +106,6 @@
       loop:
         - /tmp/wazuh-kubernetes
         - /tmp/wazuh.yaml
-
-- name: Creating pv
-  include_tasks: create_pv.yml
-  loop:
-    - { name: "wazuh-index-pv", size: "10Gi", claim_name: "wazuh-indexer-wazuh-indexer-0", path: "{{ wazuh_pv_index_path }}" }
-    - { name: "wazuh-manager-master-0-pv", size: "5Gi", claim_name: "wazuh-manager-master-wazuh-manager-master-0",path: "{{ wazuh_pv_manager_master_path }}" }
-    - { name: "wazuh-manager-worker-0-pv", size: "5Gi", claim_name: "wazuh-manager-worker-wazuh-manager-worker-0",path: "{{ wazuh_pv_manager_worker_path }}" }
-
-- name: Edit services
-  include_tasks: edit_services.yml
-  loop:
-    - { name: "wazuh-indexer", type: "LoadBalancer", ip: [''] }
-    - { name: "wazuh-manager-master", type: "LoadBalancer", ip: ['']}
-    - { name: "wazuh-manager", type: "LoadBalancer", ip: ['']}
 
 - name: Check if ingress exist
   kubernetes.core.k8s_info:
@@ -130,4 +140,4 @@
                     service:
                       name: wazuh-dashboard
                       port:
-                        number: 80
+                        number: 443

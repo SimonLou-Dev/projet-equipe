@@ -60,7 +60,7 @@
     #- tools/helm
     #- tools/kustomize
     #- kube-app/nginx
-    - kube-app/monitoring
+    #- kube-app/monitoring
     #- kube-app/nginx # Permet de les réinstaller avec le monitoring
     - kube-app/wazuh
 
