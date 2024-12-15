@@ -27,11 +27,5 @@
 - name: install kustomize
   become: yes
   become_method: sudo
-  shell: /tmp/install_kustomize.sh
+  shell: /tmp/install_kustomize.sh /usr/bin
   when: __kustomize_file.stat.exists == False and __kustomize_install.rc != 0
-
-- name: modify kustomize path
-  become: yes
-  become_method: sudo
-  command: mv /tmp/kustomize /usr/bin/kustomize
-  when: __kustomize_install.rc != 0

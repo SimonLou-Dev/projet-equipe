@@ -1,4 +1,6 @@
 - name: "check if wazuh {{ item.name }} exist"
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: PersistentVolume
     name: "{{ item.name }}"
@@ -17,6 +19,8 @@
 # Must create pv with item.name, item.size, and item.claim_name
 - name: "Create wazuh {{ item.name }}"
   when: __wazuh_pv.resources | length == 0
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s:
     definition:
       apiVersion: v1

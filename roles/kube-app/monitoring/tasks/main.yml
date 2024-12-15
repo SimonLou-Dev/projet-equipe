@@ -1,16 +1,31 @@
 - name: Add helm chart repo
+  become: yes
+  become_method: sudo
   kubernetes.core.helm_repository:
     name: prometheus-community
     repo_url: https://prometheus-community.github.io/helm-charts
 
 
 - name: check if prometheus persistent volume exists
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: PersistentVolume
     name: prometheus
   register: __prometheus_pv
 
+- name: create file for prometheus
+  become: yes
+  become_method: sudo
+  file:
+    state: directory
+    mode: 1755
+    path: "{{ prometheus_storage_local_path }}"
+  delegate_to: kube-worker-0
+
 - name: Create prometheus persistent volume
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s:
     definition:
       apiVersion: v1
@@ -29,18 +44,12 @@
   when: __prometheus_pv.resources | length == 0
 
 - name: Check if monitoring namespace exists
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: namespace
     name: monitoring
   register: __monitoring_namespace
-
-- name: create hostpath for prometheus
-  file:
-    state: directory
-    mode: 1750
-    path: "{{ prometheus_storage_local_path }}"
-  when: prometheus_storage_class == "local-path"
-  delegate_to: "{{ kubeadm_storage_node }}"
 
 - name: Template values for helm chart
   template:
@@ -48,6 +57,8 @@
     dest: /tmp/monitoring-values.yaml
 
 - name: Install or Update prometheus community on kubernetes
+  become: yes
+  become_method: sudo
   kubernetes.core.helm:
     name: monitoring
     chart_ref: prometheus-community/kube-prometheus-stack
@@ -62,20 +73,46 @@
   loop: "{{ grafana_extra_dashboards }}"
 
 - name: Get configmap
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: ConfigMap
     namespace: monitoring
   register: __configmap_check
 
 - name: delete base dashboards
+  become: yes
+  become_method: sudo
   shell: "kubectl delete configmap {{ item }} -n monitoring"
   when: __configmap_check.resources | map(attribute='metadata.name') | list | intersect([item]) | length > 0
   loop: "{{ grafana_delete_base_dashboards }}"
-
 
 - name: Delete temporary values file
   file:
     state: absent
     path: /tmp/monitoring-values.yaml
+
+- name: check if grafana cert secret exists
+  become: yes
+  become_method: sudo
+  kubernetes.core.k8s_info:
+    kind: secret
+    name: grafana-selfsigned
+    namespace: monitoring
+  register: __grafana_cert
+  changed_when: False
+  ignore_errors: yes
+
+- name: Create grafana cert secret
+  when: __grafana_cert.resources | length == 0
+  block:
+    - name: Generate self-signed certificate
+      command: 'openssl req -x509 -nodes -new -newkey rsa:2048 -days 1024 -sha256 -keyout /tmp/grafana.key -out /tmp/grafana.crt -subj "/CN={{ grafana_ingress_host }}/C=FR" -addext "subjectAltName = DNS:{{ grafana_ingress_host }}"'
+
+    #kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt
+    - name: create kube secret for grafana cert
+      become: yes
+      become_method: sudo
+      shell: "kubectl create secret -n monitoring tls grafana-selfsigned --key=/tmp/grafana.key --cert=/tmp/grafana.crt"
 
 

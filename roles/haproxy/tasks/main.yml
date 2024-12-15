@@ -11,6 +11,26 @@
       - haproxy
       - iptables-services
       - firewalld
+      - net-tools
+
+- name: start firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: set arp static for gateway
+  shell: "arp -s {{ proxmox_gateway_ip }} {{ proxmox_gateway_mac }}"
+
+- name: create persistent mac table on rocky
+  become: yes
+  template:
+    src: ifup-local.j2
+    dest: /etc/sysconfig/network-scripts/ifup-local
+    owner: root
+    group: root
+    mode: 0755
+
 
 
 - name: iptables configuration to act as a gateway
@@ -24,7 +44,7 @@
 - name: Firewalld port configuration for haproxy
   become: yes
   become_method: sudo
-  shell : "firewall-cmd --permanent --add-port=6443/tcp --add-port=80/tcp --add-port=5443/tcp --add-port=2222/tcp --add-port=9000/tcp"
+  shell : "firewall-cmd --permanent --add-port=6443/tcp --add-port=443/tcp --add-port=80/tcp --add-port=5443/tcp --add-port=2222/tcp --add-port=9000/tcp"
 
 - name: Firewalld masquerade  configuration for haproxy
   shell: "firewall-cmd --permanent --add-masquerade"

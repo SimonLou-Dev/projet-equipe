@@ -21,25 +21,8 @@
 
 - name: Check if kubeconfig already exists
   stat:
-    path: "/home/vagrant/.kube"
+    path: "/root/.kube"
   register: __kubeconfig_already_init
-
-- name: Create .kube directory
-  file:
-    path: "/home/vagrant/.kube"
-    state: directory
-    owner: root
-    group: root
-    mode: 0750
-  when: not __kubeconfig_already_init.stat.exists
-
-- name: Copy admin.conf to .kube/config
-  copy:
-    src: /etc/kubernetes/admin.conf
-    dest: "/home/vagrant/.kube/config"
-    remote_src: true
-    mode: 777
-  when: not __kubeconfig_already_init.stat.exists
 
 - name: Create .kube directory
   file:
@@ -50,27 +33,10 @@
     mode: 0750
   when: not __kubeconfig_already_init.stat.exists
 
-- name: Create .kube directory for user
-  file:
-    path: "~/.kube"
-    state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: 0750
-  when: not __kubeconfig_already_init.stat.exists
-
 - name: Copy admin.conf to .kube/config
   copy:
     src: /etc/kubernetes/admin.conf
     dest: "/root/.kube/config"
-    remote_src: true
-    mode: 777
-  when: not __kubeconfig_already_init.stat.exists
-
-- name: Copy admin.conf to ~/.kube/config
-  copy:
-    src: /etc/kubernetes/admin.conf
-    dest: "~/.kube/config"
     remote_src: true
     mode: 777
   when: not __kubeconfig_already_init.stat.exists
@@ -100,7 +66,7 @@
 
 - name: Copy local-storage manifest
   copy:
-    src: "local-storage.yml"
+    src: "storage-class.yml"
     dest: "/tmp/local-storage.yml"
   when: ansible_hostname == kubeadm_init_node
   delegate_to: "{{ kubeadm_init_node }}"
@@ -110,13 +76,45 @@
   when: ansible_hostname == kubeadm_init_node
   delegate_to: "{{ kubeadm_init_node }}"
 
-- name: download CRDs Prometheus
-  get_url:
-    url: ' https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.78.2/stripped-down-crds.yaml'
-    dest: /tmp/crd-prom.yaml
 
-- name: install CRDs Prometheus
-  shell: "kubectl create -f /tmp/crd-prom.yaml"
+- name: check if monitoring namespace exists
+  become: yes
+  become_method: sudo
+  kubernetes.core.k8s_info:
+    kind: namespace
+    name: monitoring
+  register: __monitoring_namespace
+
+- name: Create monitoring base resources
+  when: __monitoring_namespace.resources | length == 0
+  block:
+  - name: Create monitoring namespace
+    become: yes
+    become_method: sudo
+    kubernetes.core.k8s:
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: monitoring
+
+  - name: install CRDs Prometheus
+    shell: "kubectl create -f /tmp/crd-prom.yaml"
+
+  - name: download CRDs Prometheus
+    get_url:
+      url: ' https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.78.2/stripped-down-crds.yaml'
+      dest: /tmp/crd-prom.yaml
+
+- name: set ansible kube config path in env vars
+  shell: "export K8S_AUTH_KUBECONFIG=/root/.kube/config"
+
+- name: persist in bashrc
+  lineinfile:
+    path: /home/admintranet/.bashrc
+    line: "export K8S_AUTH_KUBECONFIG=/root/.kube/config"
+    regexp: "^"
+    insertafter: EOF
 
 - name: Clean up
   when: ansible_hostname == kubeadm_init_node

@@ -37,10 +37,14 @@
   when: __helm_version.rc != 0 or __helm_version.stdout.find(helm_version) == -1
 
 - name: Get node list
+  become: yes
+  become_method: sudo
   shell: kubectl get nodes
   register: __node_list
 
 - name: Check if all nodes are ready
+  become: yes
+  become_method: sudo
   shell: kubectl get nodes | grep " Ready"
   register: __node_ready_list
   retries: 100

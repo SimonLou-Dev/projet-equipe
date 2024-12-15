@@ -1,10 +1,33 @@
 - name: check if wazuh namespace exists
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: namespace
     name: wazuh
   register: __wazuh_namespace
   changed_when: False
   ignore_errors: yes
+
+- name: Open firewalld port on all worker nodes
+  become: yes
+  become_method: sudo
+  shell: "firewall-cmd --permanent --add-port=1514/tcp --add-port=1515/tcp --add-port=55000/tcp --add-port=9200/tcp"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['k8s_workers'] }}"
+
+- name: Restart firewalld on all worker nodes
+  become: yes
+  become_method: sudo
+  shell: "firewall-cmd --reload"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['k8s_workers'] }}"
+
+- name: Open SELinux port on all worker nodes
+  become: yes
+  become_method: sudo
+  shell: "semanage port -a -t http_port_t -p tcp 1514 && semanage port -a -t http_port_t -p tcp 1515 && semanage port -a -t http_port_t -p tcp 55000 && semanage port -a -t http_port_t -p tcp 9200"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['k8s_workers'] }}"
 
 - name: check if git exists
   command: git --version
@@ -90,6 +113,8 @@
       shell: "kustomize build /tmp/wazuh-kubernetes/envs/local-env > /tmp/wazuh.yaml"
 
     - name: apply wazuh
+      become: yes
+      become_method: sudo
       shell: "kubectl apply -f /tmp/wazuh.yaml"
 
     - name: Creating pv
@@ -109,6 +134,8 @@
 
 
 - name: check if wazuh cert secret exists
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: secret
     name: wazuh-selfsigned
@@ -125,6 +152,8 @@
 
     #kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt
     - name: create kube secret for wazuh cert
+      become: yes
+      become_method: sudo
       shell: "kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt"
 
     - name: Clean up
@@ -136,6 +165,8 @@
         - /tmp/wazuh.crt
 
 - name: Check if ingress exist
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
     kind: Ingress
     name: wazuh-ingress
@@ -145,6 +176,8 @@
   ignore_errors: yes
 
 - name: Create ingress
+  become: yes
+  become_method: sudo
   when: __wazuh_ingress.resources | length == 0
   kubernetes.core.k8s:
     state: present
@@ -156,6 +189,7 @@
         namespace: wazuh
         annotations:
           nginx.ingress.kubernetes.io/rewrite-target: /
+          nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
       spec:
         tls:
           - hosts:

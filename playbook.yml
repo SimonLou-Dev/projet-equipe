@@ -19,13 +19,11 @@
       - hardening/rocky
 
 - name: Hardening proxmox
-  hosts: a  #proxmox
+  hosts: a #proxmox
   become_method: sudo
   become: yes
   roles:
       - hardening/proxmox
-
-
 
 - name: Install volumes on workers
   hosts: a #k8s_workers
@@ -34,13 +32,13 @@
   roles:
       - volumes
   vars:
-    partitions: # Ici sur 50 GO
-      - { path: "/var/lib/containerd", owner: "root", group: "root", mode: "0755", part_start: "0%", part_end: "50%", format: "ext4", disk: "/dev/vdb" } #25Go
-      - { path: "/data", owner: "root", group: "root", mode: "0755", part_start: "51%", part_end: "76%", format: "ext4", disk: "/dev/vdb" } # 12.5Go
-      - { path: "/var/lib/kubelet", owner: "root", group: "root", mode: "0755", part_start: "77%", part_end: "92%", format: "ext4", disk: "/dev/vdb" } # 7.5Go
-      - { path: "/run/containerd", owner: "root", group: "root", mode: "0755", part_start: "93%", part_end: "98%", format: "ext4", disk: "/dev/vdb" } # 2.5Go
+    partitions: # Ici sur 107 GO
+      - { path: "/data", owner: "root", group: "root", mode: "0755", part_start: "0%", part_end: "50%", format: "ext4", disk: "/dev/vdb" } #50Go
+      - { path: "/var/lib/containerd", owner: "root", group: "root", mode: "0755", part_start: "50%", part_end: "85%", format: "ext4", disk: "/dev/vdb" } # 37.5Go
+      - { path: "/var/lib/kubelet", owner: "root", group: "root", mode: "0755", part_start: "85%", part_end: "95%", format: "ext4", disk: "/dev/vdb" } # 10Go
+      - { path: "/run/containerd", owner: "root", group: "root", mode: "0755", part_start: "95%", part_end: "100%", format: "ext4", disk: "/dev/vdb" } # 5.3
 
-- name: Install kubernetes master init
+- name: Install kubernetes init
   hosts:  a #k8s_masters, k8s_workers
   become_method: sudo
   become: yes
@@ -61,6 +59,5 @@
     #- tools/kustomize
     #- kube-app/nginx
     #- kube-app/monitoring
-    #- kube-app/nginx # Permet de les réinstaller avec le monitoring
     - kube-app/wazuh
 

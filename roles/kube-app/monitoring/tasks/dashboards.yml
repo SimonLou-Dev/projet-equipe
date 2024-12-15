@@ -1,4 +1,6 @@
 - name: "Check if dashboard exist"
+  become: yes
+  become_method: sudo
   kubernetes.core.k8s_info:
       kind: ConfigMap
       name: "{{ item.name }}"
@@ -14,6 +16,8 @@
   when: __dashboard.resources | length == 0
 
 - name: "Create dashboard {{ item.name }}"
+  become: yes
+  become_method: sudo
   shell: "kubectl apply -f /tmp/{{ item.file }}"
   when: __dashboard.resources | length == 0
 

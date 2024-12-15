@@ -1,0 +1,7 @@
+#!/bin/sh
+if [[ "$1" == "eth0" ]]
+then
+    arp -s {{ proxmox_gateway_ip }} {{ proxmox_gateway_mac }}
+else
+    #DO_NOTHING
+fi
