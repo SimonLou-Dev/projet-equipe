@@ -15,6 +15,7 @@
     name: monitoring
   register: __monitoring_namespace
 
+
 - name: Deploy ingress-nginx (without monitoring)
   when: __monitoring_namespace.resources | length == 0
   kubernetes.core.helm:
@@ -52,6 +53,4 @@
             enabled: true
             release: prometheus
             namespace: monitoring
-
-
 

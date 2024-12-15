@@ -6,6 +6,8 @@
 
 - name: create path for wazuh {{ item.name }}
   become: yes
+  when: __wazuh_pv.resources | length == 0
+  delegate_to: kube-worker-0
   become_method: sudo
   file:
     state: directory

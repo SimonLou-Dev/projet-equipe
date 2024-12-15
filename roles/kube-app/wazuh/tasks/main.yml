@@ -32,7 +32,7 @@
   when: __wazuh_repo.stat.exists == True
 
 - name: install wazuh
-  #when: __wazuh_namespace.resources | length == 0
+  when: __wazuh_namespace.resources | length == 0
   become: yes
   become_method: sudo
   block:
@@ -107,9 +107,37 @@
         - /tmp/wazuh-kubernetes
         - /tmp/wazuh.yaml
 
+
+- name: check if wazuh cert secret exists
+  kubernetes.core.k8s_info:
+    kind: secret
+    name: wazuh-selfsigned
+    namespace: wazuh
+  register: __wazuh_cert
+  changed_when: False
+  ignore_errors: yes
+
+- name: Create wazuh cert secret
+  when: __wazuh_cert.resources | length == 0
+  block:
+    - name: Generate self-signed certificate
+      command: 'openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/wazuh.key -out /tmp/wazuh.crt -subj "/CN={{ wazuh_ingress_host }}/O={{ wazuh_ingress_host }}" -addext "subjectAltName = DNS:{{ wazuh_ingress_host }}"'
+
+    #kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt
+    - name: create kube secret for wazuh cert
+      shell: "kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt"
+
+    - name: Clean up
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/wazuh.key
+        - /tmp/wazuh.crt
+
 - name: Check if ingress exist
   kubernetes.core.k8s_info:
-    kind: ingress
+    kind: Ingress
     name: wazuh-ingress
     namespace: wazuh
   register: __wazuh_ingress
@@ -129,6 +157,10 @@
         annotations:
           nginx.ingress.kubernetes.io/rewrite-target: /
       spec:
+        tls:
+          - hosts:
+              - "{{ wazuh_ingress_host }}"
+            secretName: wazuh-selfsigned
         ingressClassName: "nginx"
         rules:
           - host: "{{ wazuh_ingress_host }}"
@@ -138,6 +170,6 @@
                   pathType: Prefix
                   backend:
                     service:
-                      name: wazuh-dashboard
+                      name: dashboard
                       port:
                         number: 443

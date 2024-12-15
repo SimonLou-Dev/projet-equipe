@@ -35,9 +35,9 @@
       - volumes
   vars:
     partitions: # Ici sur 50 GO
-      - { path: "/var/lib/kubelet", owner: "root", group: "root", mode: "0755", part_start: "0%", part_end: "50%", format: "ext4", disk: "/dev/vdb" } #25Go
+      - { path: "/var/lib/containerd", owner: "root", group: "root", mode: "0755", part_start: "0%", part_end: "50%", format: "ext4", disk: "/dev/vdb" } #25Go
       - { path: "/data", owner: "root", group: "root", mode: "0755", part_start: "51%", part_end: "76%", format: "ext4", disk: "/dev/vdb" } # 12.5Go
-      - { path: "/var/lib/containerd", owner: "root", group: "root", mode: "0755", part_start: "77%", part_end: "92%", format: "ext4", disk: "/dev/vdb" } # 7.5Go
+      - { path: "/var/lib/kubelet", owner: "root", group: "root", mode: "0755", part_start: "77%", part_end: "92%", format: "ext4", disk: "/dev/vdb" } # 7.5Go
       - { path: "/run/containerd", owner: "root", group: "root", mode: "0755", part_start: "93%", part_end: "98%", format: "ext4", disk: "/dev/vdb" } # 2.5Go
 
 - name: Install kubernetes master init
