@@ -51,7 +51,7 @@
     - kubernetes
 
 - name: Install kubernetes app
-  hosts: kube-master-0
+  hosts: a #kube-master-0
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
@@ -60,4 +60,13 @@
     #- kube-app/nginx
     #- kube-app/monitoring
     - kube-app/wazuh
+    # - DB
+
+- name: Install Agents
+  hosts: all, !proxmox
+  become_method: sudo
+  become: yes
+  roles:
+    - agents/wazuh-agent
+    - agents/node-exporter
 

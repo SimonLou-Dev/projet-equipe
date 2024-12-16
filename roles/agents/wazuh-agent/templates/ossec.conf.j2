@@ -7,14 +7,17 @@
 <ossec_config>
   <client>
     <server>
-      <address>{{ #Ip }}</address>
+      <address>{{ wazuh_api_ip }}</address>
     </server>
-    <crypto_method>aes</crypto_method>
     <enrollment>
         <agent_name>{{ ansible_hostname }}</agent_name>
     </enrollment>
   </client>
-
+   {% if __wazuh_pass.resources | length == 1 %}
+<auth>
+    <use_password>yes</use_password>
+  </auth>
+  {% endif %}
   <client_buffer>
     <disabled>no</disabled>
     <queue_size>5000</queue_size>
@@ -107,6 +110,24 @@
     </synchronization>
   </syscheck>
 
+
+  <!-- Journald -->
+
+  <localfile>
+      <log_format>journald</log_format>
+      <location>all</location>
+    </localfile>
+
+    <localfile>
+      <log_format>journald</log_format>
+      <location>su</location>
+    </localfile>
+
+    <localfile>
+      <log_format>journald</log_format>
+      <location>NetworkManager</location>
+    </localfile>
+
   <!-- Log analysis -->
   #<localfile>
   #  <log_format>syslog</log_format>
@@ -145,6 +166,43 @@
     <command>last -n 5</command>
     <frequency>360</frequency>
   </localfile>
+
+  <!-- Command -->
+  <command>
+	<name>disable-account</name>
+	<executable>disable-account.sh</executable>
+	<expect>user</expect>
+	<timeout_allowed>yes</timeout_allowed>
+  </command>
+
+  <command>
+    <name>restart-ossec</name>
+    <executable>restart-ossec.sh</executable>
+    <expect></expect>
+  </command>
+
+  <command>
+    <name>firewall-drop</name>
+    <executable>firewall-drop.sh</executable>
+    <expect>srcip</expect>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+
+  <command>
+    <name>host-deny</name>
+    <executable>host-deny.sh</executable>
+    <expect>srcip</expect>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+
+  <command>
+    <name>route-null</name>
+    <executable>route-null.sh</executable>
+    <expect>srcip</expect>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+
+
 
   <!-- Active response -->
   <active-response>

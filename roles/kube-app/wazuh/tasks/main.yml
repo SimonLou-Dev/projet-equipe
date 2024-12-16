@@ -109,6 +109,15 @@
         regexp: "LoadBalancer"
         replace: "ClusterIP"
 
+    - name: "Set memory limit to {{ wazuh_memery_limit }}"
+      replace:
+        path: /tmp/wazuh-kubernetes/wazuh/indexer_stack/wazuh-dashboard/dashboard-svc.yaml
+        regexp: "memory: 512Mi"
+        replace: "memory: {{ wazuh_memery_limit }}"
+      loop:
+        - "wazuh_managers/wazuh-master-sts.yaml"
+        - "wazuh_managers/wazuh-worker-sts.yaml"
+
     - name: build wazuh manifest with kustomize
       shell: "kustomize build /tmp/wazuh-kubernetes/envs/local-env > /tmp/wazuh.yaml"
 
