@@ -67,6 +67,5 @@
   become_method: sudo
   become: yes
   roles:
-    - agents/wazuh-agent
     - agents/node-exporter
-
+    - agents/wazuh-agent

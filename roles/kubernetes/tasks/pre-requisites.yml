@@ -22,11 +22,11 @@ EOF"
   shell: "modprobe br_netfilter"
 
 - name: Firewalld port configuration for kube master
-  shell: "firewall-cmd --permanent --add-port=6443/tcp --add-port=2379-2380/tcp --add-port=10250/tcp --add-port=10251/tcp --add-port=10252/tcp --add-port=10255/tcp --add-port=8472/udp"
+  shell: "firewall-cmd --permanent --add-port=6443/tcp --add-port=2379-2380/tcp --add-port=10250/tcp --add-port=10251/tcp --add-port=10259/tcp --add-port=10252/tcp --add-port=10255/tcp --add-port=8472/udp --add-port=10249/tcp --add-port=2381/tcp --add-port=10257/tcp"
   when: inventory_hostname is in groups['k8s_masters']
 
 - name: Firewalld port configuration for kube workers
-  shell : "firewall-cmd --permanent --add-port=10250/tcp --add-port=10255/tcp --add-port=443/tcp  --add-port=8472/udp --add-port=30000-32767/tcp"
+  shell : "firewall-cmd --permanent --add-port=10250/tcp --add-port=10255/tcp --add-port=443/tcp  --add-port=8472/udp --add-port=30000-32767/tcp --add-port=10249/tcp"
   when: inventory_hostname is not in groups['k8s_masters']
 
 - name: Firewalld add http & https on public
@@ -41,7 +41,27 @@ EOF"
     - protocol: tcp
       port: 443
       type: http_port_t
+    - protocol: tcp
+      port: 10249
+      type: http_port_t
   when: inventory_hostname is not in groups['k8s_masters']
+
+- name: Configure SELinux for master (port)
+  shell: "semanage port -a -t {{ item.type }} -p {{ item.protocol }} {{ item.port }}"
+  loop:
+    - protocol: tcp
+      port: 10257
+      type: http_port_t
+    - protocol: tcp
+      port: 2381
+      type: http_port_t
+    - protocol: tcp
+      port: 10249
+      type: http_port_t
+    - protocol: tcp
+      port: 10259
+      type: http_port_t
+  when: inventory_hostname is in groups['k8s_masters']
 
 - name: Firewalld masquerade  configuration for kube workers
   shell: "firewall-cmd --permanent --add-masquerade"

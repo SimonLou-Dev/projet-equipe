@@ -1,4 +1,5 @@
 ---
+
 # tasks file for roles/node_exporter
 - name: check if node-exporter is installed
   stat:
@@ -76,3 +77,16 @@
     name: node_exporter
     state: started
     enabled: yes
+
+- name: Register endpoint
+  include_role:
+    name: tools/monitoring-service
+    apply:
+      delegate_to: kube-master-0
+  vars:
+    monitoring_service_port: 9100
+    monitoring_service_path: "/metrics"
+    monitoring_service_jobName: "node_exporter"
+    monitoring_service_targetLabels: "targetLabel=node_exporter"
+    monitoring_service_sourceAgent: "{{ inventory_hostname }}"
+    monitoring_service_sourceAgentIP: "{{ ansible_eth0.ipv4.address }}"
