@@ -7,7 +7,7 @@
 <ossec_config>
   <client>
     <server>
-      <address>{{ wazuh_index}}</address>
+      <address>{{ wazuh_workers_ip[0] }}</address>
     </server>
     <enrollment>
         <agent_name>{{ ansible_hostname }}</agent_name>

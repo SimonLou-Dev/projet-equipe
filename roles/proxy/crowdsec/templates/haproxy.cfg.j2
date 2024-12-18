@@ -1,0 +1,107 @@
+global
+    log         127.0.0.1 local2
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy
+    group       haproxy
+    daemon
+    stats socket /var/lib/haproxy/stats
+     # Crowdsec bouncer >>>
+     lua-prepend-path /usr/lib/crowdsec/lua/haproxy/?.lua
+     lua-load /usr/lib/crowdsec/lua/haproxy/crowdsec.lua # path to crowdsec.lua
+     setenv CROWDSEC_CONFIG /etc/crowdsec/bouncers/crowdsec-haproxy-bouncer.conf # path to crowdsec bouncer configuration file
+     # Crowdsec bouncer <<<
+
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 3000
+
+listen prometheus
+    bind {{ ansible_eth0.ipv4.address }}:9000
+    mode http
+    http-request use-service prometheus-exporter if { path /metrics }
+    no log
+
+listen ssh-forward
+    bind {{ ansible_eth1.ipv4.address }}:2222
+    mode tcp
+    option tcplog
+    timeout client 1h
+    timeout server 1h
+    server ssh_bastion_name {{ hostvars[ssh_bastion_name].ansible_eth0.ipv4.address }}:22 check inter 1000
+
+
+listen kubernetes-apiserver-https
+  bind {{ kube_api_internal_endpoint }}:6443
+  mode tcp
+  option log-health-checks
+  timeout client 10m
+  timeout server 10m
+  balance roundrobin
+{% for server in groups[kubeadm_master_group_name] %}
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:6443 check check-ssl verify none inter 10000
+{% endfor %}
+
+frontend kubernetes-ingress-front
+  # Crowdsec bouncer >>>
+  stick-table type ip size 10k expire 30m # declare a stick table to cache captcha verifications
+  http-request lua.crowdsec_allow # action to identify crowdsec remediation
+  http-request track-sc0 src if { var(req.remediation) -m str "captcha-allow" } # cache captcha allow decision
+  http-request redirect location %[var(req.redirect_uri)] if { var(req.remediation) -m str "captcha-allow" } # redirect to initial url
+  http-request use-service lua.reply_captcha if { var(req.remediation) -m str "captcha" } # serve captcha template if remediation is captcha
+  http-request use-service lua.reply_ban if { var(req.remediation) -m str "ban" } # serve ban template if remediation is ban
+  # Crowdsec bouncer <<<
+  bind *:80
+  mode tcp
+  default_backend kubernetes-ingress-backend
+
+backend kubernetes-ingress-backend
+  mode tcp
+  option log-health-checks
+  balance roundrobin
+{% for server in groups[kubeadm_worker_group_name] %}
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:80 check inter 1000
+{% endfor %}
+
+frontend kubernetes-ingress-front-https
+  # Crowdsec bouncer >>>
+  stick-table type ip size 10k expire 30m # declare a stick table to cache captcha verifications
+  http-request lua.crowdsec_allow # action to identify crowdsec remediation
+  http-request track-sc0 src if { var(req.remediation) -m str "captcha-allow" } # cache captcha allow decision
+  http-request redirect location %[var(req.redirect_uri)] if { var(req.remediation) -m str "captcha-allow" } # redirect to initial url
+  http-request use-service lua.reply_captcha if { var(req.remediation) -m str "captcha" } # serve captcha template if remediation is captcha
+  http-request use-service lua.reply_ban if { var(req.remediation) -m str "ban" } # serve ban template if remediation is ban
+  # Crowdsec bouncer <<<
+  bind *:443
+  mode tcp
+  default_backend kubernetes-ingress-backend-https
+
+backend kubernetes-ingress-backend-https
+  mode tcp
+  option log-health-checks
+  balance roundrobin
+{% for server in groups[kubeadm_worker_group_name] %}
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:443 check inter 1000
+{% endfor %}
+
+# Crowdsec Backend
+backend captcha_verifier
+  server captcha_verifier www.recaptcha.net:443 check
+
+backend crowdsec
+  server crowdsec 127.0.0.1:8080 check

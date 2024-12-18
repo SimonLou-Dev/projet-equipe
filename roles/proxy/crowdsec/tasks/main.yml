@@ -1,0 +1,99 @@
+# Make check
+- name: Add crowdsec repo
+  yum_repository:
+    state: present
+    name: crowdsec_crowdsec
+    baseurl: https://packagecloud.io/crowdsec/crowdsec/el/9/$basearch
+    description: Crowdsec repository
+    gpgcheck: no
+    gpgkey: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    repo_gpgcheck: no
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    metadata_expire: 3600
+
+- name: Add crowdsec source repo
+  yum_repository:
+    state: present
+    name: crowdsec_crowdsec-source
+    baseurl: https://packagecloud.io/crowdsec/crowdsec/el/9/SRPMS
+    description: Crowdsec repository source
+    gpgcheck: no
+    gpgkey: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    repo_gpgcheck: no
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    metadata_expire: 3600
+
+- name: Install crowdsec
+  yum:
+    name: crowdsec
+    state: present
+    enablerepo: crowdsec,crowdsec-source
+
+- name: Enroll crowdsec
+  shell: "cscli console enroll -e context {{ crowdsec_api_key }}"
+  register: enroll_output
+
+- name: Install haproxy bouncer from github
+  get_url:
+    url: https://github.com/crowdsecurity/cs-haproxy-bouncer/releases/download/v0.0.7/crowdsec-haproxy-bouncer.tgz
+    dest: /tmp/crowdsec-haproxy-bouncer.tgz
+
+- name: Extract haproxy bouncer
+  unarchive:
+    src: /tmp/crowdsec-haproxy-bouncer.tgz
+    dest: /tmp
+    remote_src: yes
+
+- name: Install haproxy bouncer
+  when: False
+  shell: "cd /tmp/crowdsec-haproxy-bouncer-v* && ./install.sh"
+
+- name: Check if bot is already registered
+  shell: "cscli bouncers list | grep crowdsec-haproxy-bouncer"
+  register: bouncer_output
+  ignore_errors: yes
+
+- name: Configure and register haproxy bouncer
+  when: bouncer_output.rc != 0
+  block:
+  - name: Register haproxy bouncer
+    when: bouncer_output.rc != 0
+    shell: "cscli bouncers add crowdsec-haproxy-bouncer"
+    register: __bouncer_output
+
+  - name: Create crowdsec directory
+    file:
+      path: /etc/crowdsec/bouncers
+      state: directory
+      mode: 0755
+
+  - name: Configure crowdsec
+    template:
+      src: crowdsec-haproxy-bouncer.conf.j2
+      dest: /etc/crowdsec/bouncers/crowdsec-haproxy-bouncer.conf
+      owner: root
+      group: root
+      mode: 0644
+
+- name: Configure haproxy
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+    validate: haproxy -c -V -f %s
+
+- name: restart haproxy
+  become: yes
+  become_method: sudo
+  service:
+    name: haproxy
+    state: restarted
+    enabled: yes
+
+
+
+
