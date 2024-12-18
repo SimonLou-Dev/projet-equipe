@@ -21,26 +21,12 @@
     name: monitoring
   register: __monitoring_namespace
 
+- name: Template values for helm chart
+  template:
+    src: ingress-nginx.yaml.j2
+    dest: /tmp/ingress-nginx.yaml
+
 - name: Deploy ingress-nginx
   become: yes
   become_method: sudo
-  kubernetes.core.helm:
-    name: ingress-nginx
-    chart_ref: ingress-nginx/ingress-nginx
-    namespace: ingress-nginx
-    create_namespace: "{{ __nginx_ingress_namespace.resources | length == 0 }}"
-    state: present
-    values:
-      controller:
-        admissionWebhooks:
-          enabled: false
-        service:
-          type: "{{ nginx_ingress_service_type }}"
-          externalIPs: "{{ nginx_ingress_service_external_ips }}"
-        metrics:
-          enabled: true
-          serviceMonitor:
-            enabled: true
-            release: prometheus
-            namespace: monitoring
-
+  shell: "helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace --values /tmp/monitoring-values.yaml"

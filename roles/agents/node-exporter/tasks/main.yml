@@ -78,15 +78,12 @@
     state: started
     enabled: yes
 
-- name: Register endpoint
-  include_role:
-    name: tools/monitoring-service
-    apply:
-      delegate_to: kube-master-0
-  vars:
-    monitoring_service_port: 9100
-    monitoring_service_path: "/metrics"
-    monitoring_service_jobName: "node_exporter"
-    monitoring_service_targetLabels: "targetLabel=node_exporter"
-    monitoring_service_sourceAgent: "{{ inventory_hostname }}"
-    monitoring_service_sourceAgentIP: "{{ ansible_eth0.ipv4.address }}"
+- name: Check if node-exporter is ready
+  uri:
+    url: "http://{{ ansible_eth0.ipv4.address }}:9100/metrics"
+    method: GET
+    status_code: 200
+  register: __node_exporter_ready
+  until: __node_exporter_ready.status == 200
+  retries: 5
+  delay: 10

@@ -59,14 +59,7 @@
 - name: Install or Update prometheus community on kubernetes
   become: yes
   become_method: sudo
-  kubernetes.core.helm:
-    name: monitoring
-    chart_ref: prometheus-community/kube-prometheus-stack
-    namespace: monitoring
-    create_namespace: "{{ __monitoring_namespace.resources | length == 0 }}"
-    state: present
-    values_files:
-      - /tmp/monitoring-values.yaml
+  shell: "helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace --values /tmp/monitoring-values.yaml"
 
 - name: add Dashboards
   include_tasks: dashboards.yml

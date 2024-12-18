@@ -1,0 +1,50 @@
+- name: Template values for helm chart
+  template:
+    src: values.yaml.j2
+    dest: /tmp/monitoring-values.yaml
+
+- name: Deploy helm ( using shell command )
+  become: yes
+  become_method: sudo
+  shell: "helm upgrade --install database-mysql oci://registry-1.docker.io/bitnamicharts/mysql --namespace database --create-namespace --values /tmp/monitoring-values.yaml"
+
+- name: Check if database persistent volume exists
+  become: yes
+  become_method: sudo
+  kubernetes.core.k8s_info:
+      kind: PersistentVolume
+      name: database-mysql
+  register: __database_pv
+
+- name: Create database persistent volume path
+  become: yes
+  become_method: sudo
+  file:
+      state: directory
+      mode: 1755
+      path: "{{ database_storage_local_path | default('/data/database') }}"
+  delegate_to: kube-worker-0
+
+- name: Create database persistent volume
+  become: yes
+  become_method: sudo
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: database-mysql
+      spec:
+        capacity:
+          storage: "8Gi"
+        volumeMode: Filesystem
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: "{{ database_storage_class | default('local-storage') }}"
+        hostPath:
+          path: "{{ database_storage_local_path | default('/data/database') }}"
+
+
+
+
+

@@ -51,19 +51,19 @@
     - kubernetes
 
 - name: Install kubernetes app
-  hosts: a #kube-master-0
+  hosts: kube-master-0
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
     #- tools/helm
     #- tools/kustomize
     #- kube-app/nginx
-    #- kube-app/monitoring
+    - kube-app/monitoring
     - kube-app/wazuh
-    # - DB
+    #- kube-app/database
 
 - name: Install Agents
-  hosts: all, !proxmox
+  hosts: a #all, !proxmox
   become_method: sudo
   become: yes
   roles:

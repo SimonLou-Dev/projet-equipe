@@ -1,0 +1,19 @@
+auth:
+    rootPassword: "{{ database_root_password }}"
+    username: "{{ database_user }}"
+    password: "{{ database_password }}"
+    createDatabase: true
+    database: "{{ database_name | default('intranet') }}"
+
+global:
+    defaultStorageClass: {{ database_storage_class | default('local-storage') }}
+
+metrics:
+    enabled: true
+    prometheusRule:
+        enabled: true
+        namespace: "monitoring"
+    serviceMonitor:
+        enabled: true
+        namespace: "monitoring"
+

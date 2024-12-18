@@ -59,7 +59,7 @@ EOF"
       port: 10249
       type: http_port_t
     - protocol: tcp
-      port: 10259
+      port: 1025k9
       type: http_port_t
   when: inventory_hostname is in groups['k8s_masters']
 
