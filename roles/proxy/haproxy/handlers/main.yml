@@ -3,3 +3,9 @@
     name: haproxy
     state: reloaded
     enabled: yes
+
+- name: restart_haproxy
+  service:
+    name: haproxy
+    state: restarted
+    enabled: yes

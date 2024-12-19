@@ -55,45 +55,6 @@
   register: bouncer_output
   ignore_errors: yes
 
-- name: Configure and register haproxy bouncer
-  when: bouncer_output.rc != 0
-  block:
-  - name: Register haproxy bouncer
-    when: bouncer_output.rc != 0
-    shell: "cscli bouncers add crowdsec-haproxy-bouncer"
-    register: __bouncer_output
-
-  - name: Create crowdsec directory
-    file:
-      path: /etc/crowdsec/bouncers
-      state: directory
-      mode: 0755
-
-  - name: Configure crowdsec
-    template:
-      src: crowdsec-haproxy-bouncer.conf.j2
-      dest: /etc/crowdsec/bouncers/crowdsec-haproxy-bouncer.conf
-      owner: root
-      group: root
-      mode: 0644
-
-- name: Configure haproxy
-  template:
-    src: haproxy.cfg.j2
-    dest: /etc/haproxy/haproxy.cfg
-    owner: root
-    group: root
-    mode: 0644
-    validate: haproxy -c -V -f %s
-
-- name: restart haproxy
-  become: yes
-  become_method: sudo
-  service:
-    name: haproxy
-    state: restarted
-    enabled: yes
-
 
 
 

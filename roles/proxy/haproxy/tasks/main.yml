@@ -58,11 +58,10 @@
     - protocol: tcp
       port: 2222
       type: ssh_port_t
+  notify: start_haproxy
 
 - name: Configure SELinux for haproxy (connect any)
   shell: "setsebool -P haproxy_connect_any=1"
-
-
 
 - name: restart firewalld
   service:
@@ -77,10 +76,15 @@
     owner: root
     group: root
     mode: 0644
-  notify: reload_haproxy
+  notify: start_haproxy
 
-- name: Start haproxy
-  service:
-    name: haproxy
-    state: started
-    enabled: yes
+- meta: flush_handlers
+  ignore_unreachable: yes
+
+- name: Check if haproxy is running (by SSH on 2222)
+  tcp_wait:
+    host: 10.255.0.112
+    port: 2222
+    delay: 10
+    timeout: 10
+  delegate_to: localhost

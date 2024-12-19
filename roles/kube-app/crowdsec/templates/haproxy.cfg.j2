@@ -87,7 +87,7 @@ frontend kubernetes-ingress-front-https
   http-request use-service lua.reply_captcha if { var(req.remediation) -m str "captcha" } # serve captcha template if remediation is captcha
   http-request use-service lua.reply_ban if { var(req.remediation) -m str "ban" } # serve ban template if remediation is ban
   # Crowdsec bouncer <<<
-  bind *:443
+  bind *:443 ssl crt /etc/ssl/certs/haproxy.key
   mode tcp
   default_backend kubernetes-ingress-backend-https
 
@@ -96,7 +96,7 @@ backend kubernetes-ingress-backend-https
   option log-health-checks
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:443 check inter 1000
+  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:443 check inter 1000 ssl verify required ca-file /etc/ssl/certs/ingress-nginx.crt  sni req.hdr(Host)
 {% endfor %}
 
 # Crowdsec Backend

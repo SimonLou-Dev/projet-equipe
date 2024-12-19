@@ -10,8 +10,6 @@ grafana:
     tls:
       - hosts:
           - "{{ grafana_ingress_host }}"
-        secretName: grafana-selfsigned
-
 prometheus:
   prometheusSpec:
     podMonitorSelectorNilUsesHelmValues: false

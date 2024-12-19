@@ -5,28 +5,55 @@
     name: ingress-nginx
     repo_url: https://kubernetes.github.io/ingress-nginx
 
-- name: Check if ingress-nginx namespace exists
-  become: yes
-  become_method: sudo
-  kubernetes.core.k8s_info:
-    kind: namespace
-    name: ingress-nginx
-  register: __nginx_ingress_namespace
-
-- name: check if monitoring namespace exists
-  become: yes
-  become_method: sudo
-  kubernetes.core.k8s_info:
-    kind: namespace
-    name: monitoring
-  register: __monitoring_namespace
-
 - name: Template values for helm chart
   template:
-    src: ingress-nginx.yaml.j2
+    src: values.yaml.j2
     dest: /tmp/ingress-nginx.yaml
 
 - name: Deploy ingress-nginx
   become: yes
   become_method: sudo
-  shell: "helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace --values /tmp/monitoring-values.yaml"
+  shell: "helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace --values /tmp/ingress-nginx.yaml"
+
+- name: Check if cert exist
+  become: yes
+  become_method: sudo
+  stat:
+    path: "/etc/ssl/certs/ingress-nginx.crt"
+  register: __cert
+
+- name: Create global ingress cert
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  block:
+    - name: Generate self-signed certificate
+      command: 'openssl req -x509 -nodes -new -newkey rsa:2048 -days 1024 -sha256 -keyout /etc/ssl/certs/ingress-nginx.key -out /etc/ssl/certs/ingress-nginx.crt -subj "/CN={{ nginx_global_domain }}/C=FR" -addext "subjectAltName = DNS:{{ nginx_global_domain }} {% for ingress_ip in nginx_ingress_service_external_ips %},IP:{{ ingress_ip }}{% endfor %}"'
+
+    #kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt
+    - name: create kube secret for cert
+      become: yes
+      become_method: sudo
+      shell: "kubectl create secret -n ingress-nginx tls {{ nginx_global_cert_name }} --key=/etc/ssl/certs/ingress-nginx.key --cert=/etc/ssl/certs/ingress-nginx.crt"
+
+- name: copy cert localy
+  become: yes
+  become_method: sudo
+  fetch:
+    src: /etc/ssl/certs/ingress-nginx.crt
+    dest: /tmp/ingress-nginx.crt
+
+- name: push cert on proxies
+  become: yes
+  become_method: sudo
+  copy:
+    src: /tmp/ingress-nginx.crt
+    dest: /etc/ssl/certs/ingress-nginx.crt
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['haproxy'] }}"
+
+- name: Delete temporary values file
+  file:
+    state: absent
+    path: /tmp/ingress-nginx.yaml
+  delegate_to: localhost

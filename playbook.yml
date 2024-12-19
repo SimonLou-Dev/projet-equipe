@@ -5,12 +5,11 @@
       ping:
 
 - name : Installing HAProxy
-  hosts: haproxy
+  hosts: a #haproxy
   become_method: sudo
   become: true
   roles:
     #- proxy/haproxy
-    - proxy/crowdsec
 
 - name: Base Hardening
   hosts: a #all !proxmox
@@ -52,14 +51,14 @@
     - kubernetes
 
 - name: Install kubernetes app
-  hosts: a #kube-master-0
+  hosts: kube-master-0
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
     #- tools/helm
     #- tools/kustomize
-    #- kube-app/nginx
-    #- kube-app/monitoring
+    - kube-app/nginx
+    - kube-app/monitoring
     - kube-app/wazuh
     #- kube-app/database
 

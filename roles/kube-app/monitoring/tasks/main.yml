@@ -51,6 +51,20 @@
     name: monitoring
   register: __monitoring_namespace
 
+- name: Check if default ssl certificate exist
+  become: yes
+  become_method: sudo
+  kubernetes.core.k8s_info:
+    kind: Secret
+    namespace: ingress-nginx
+    name: "{{ nginx_global_cert_name }}"
+  register: __cert
+
+- name: Fail if no default certificate found
+  when: __cert.resources | length == 0
+  fail:
+   msg: "No default certificate found, please run playbook with kube-app/nginx role first"
+
 - name: Template values for helm chart
   template:
     src: values.yaml.j2
@@ -85,27 +99,6 @@
     state: absent
     path: /tmp/monitoring-values.yaml
 
-- name: check if grafana cert secret exists
-  become: yes
-  become_method: sudo
-  kubernetes.core.k8s_info:
-    kind: secret
-    name: grafana-selfsigned
-    namespace: monitoring
-  register: __grafana_cert
-  changed_when: False
-  ignore_errors: yes
 
-- name: Create grafana cert secret
-  when: __grafana_cert.resources | length == 0
-  block:
-    - name: Generate self-signed certificate
-      command: 'openssl req -x509 -nodes -new -newkey rsa:2048 -days 1024 -sha256 -keyout /tmp/grafana.key -out /tmp/grafana.crt -subj "/CN={{ grafana_ingress_host }}/C=FR" -addext "subjectAltName = DNS:{{ grafana_ingress_host }}"'
-
-    #kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt
-    - name: create kube secret for grafana cert
-      become: yes
-      become_method: sudo
-      shell: "kubectl create secret -n monitoring tls grafana-selfsigned --key=/tmp/grafana.key --cert=/tmp/grafana.crt"
 
 

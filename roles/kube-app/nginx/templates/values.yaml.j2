@@ -1,0 +1,14 @@
+controller:
+  admissionWebhooks:
+    enabled: false
+  service:
+    type: {{ nginx_ingress_service_type }}
+    externalIPs: {{ nginx_ingress_service_external_ips }}
+  extraArgs:
+    default-ssl-certificate: "ingress-nginx/{{ nginx_global_cert_name }}"
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      release: "prometheus"
+      namespace: "monitoring"

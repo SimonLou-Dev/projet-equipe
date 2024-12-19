@@ -1,0 +1,71 @@
+- name: Install haproxy bouncer from github
+  get_url:
+    url: https://github.com/crowdsecurity/cs-haproxy-bouncer/releases/download/v0.0.7/crowdsec-haproxy-bouncer.tgz
+    dest: /tmp/crowdsec-haproxy-bouncer.tgz
+
+- name: Extract haproxy bouncer
+  unarchive:
+    src: /tmp/crowdsec-haproxy-bouncer.tgz
+    dest: /tmp
+    remote_src: yes
+
+- name: Install haproxy bouncer
+  when: False
+  shell: "cd /tmp/crowdsec-haproxy-bouncer-v* && ./install.sh"
+
+- name: Check if haproxy cert exist
+  become: yes
+  become_method: sudo
+  stat:
+    path: "/etc/ssl/certs/haproxy.crt"
+  register: __cert
+
+- name: Generate self-signed certificate
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  command: 'openssl req -x509 -nodes -new -newkey rsa:2048 -days 1024 -sha256 -keyout /etc/ssl/certs/haproxy.key -out /etc/ssl/certs/haproxy.crt -subj "/CN={{ nginx_global_domain }}/C=FR" -addext "subjectAltName = DNS:{{ nginx_global_domain }} {% for ingress_ip in nginx_ingress_service_external_ips %},IP:{{ ingress_ip }}{% endfor %}"'
+
+- name: Check if bot is already registered
+  shell: "cscli bouncers list | grep crowdsec-haproxy-bouncer"
+  register: bouncer_output
+  ignore_errors: yes
+
+- name: Configure and register haproxy bouncer
+  when: bouncer_output.rc != 0
+  block:
+    - name: Register haproxy bouncer
+      when: bouncer_output.rc != 0
+      shell: "cscli bouncers add crowdsec-haproxy-bouncer"
+      register: __bouncer_output
+
+    - name: Create crowdsec directory
+      file:
+        path: /etc/crowdsec/bouncers
+        state: directory
+        mode: 0755
+
+    - name: Configure crowdsec
+      template:
+        src: crowdsec-haproxy-bouncer.conf.j2
+        dest: /etc/crowdsec/bouncers/crowdsec-haproxy-bouncer.conf
+        owner: root
+        group: root
+        mode: 0644
+
+- name: Configure haproxy
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+    validate: haproxy -c -V -f %s
+
+- name: restart haproxy
+  become: yes
+  become_method: sudo
+  service:
+    name: haproxy
+    state: restarted
+    enabled: yes
