@@ -10,7 +10,6 @@
     remote_src: yes
 
 - name: Install haproxy bouncer
-  when: False
   shell: "cd /tmp/crowdsec-haproxy-bouncer-v* && ./install.sh"
 
 - name: Install crowdsec haproxy parser

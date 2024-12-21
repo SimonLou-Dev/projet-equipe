@@ -56,5 +56,5 @@
   when: ansible_hostname not in __cmd_res.stdout and ansible_hostname not  in groups[kubeadm_master_group_name]
 
 - name: Joinning new master to master
-  shell: "{{ __kubeadm_token.stdout_lines[0] }} --control-plane --node-name {{ ansible_hostname }} --certificate-key {{ __kubeadm_certs.stdout_lines[2] }} --apiserver-advertise-address={{ ansible_eth0.ipv4.address }}"
+  shell: "{{ __kubeadm_token.stdout_lines[0] }} --control-plane --node-name {{ ansible_hostname }} --certificate-key {{ __kubeadm_certs.stdout_lines[2] }} --apiserver-advertise-address={{ ansible_eth1.ipv4.address }}"
   when: ansible_hostname not in __cmd_res.stdout and ansible_hostname in groups[kubeadm_master_group_name]

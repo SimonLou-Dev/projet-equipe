@@ -30,7 +30,7 @@ defaults
     maxconn                 3000
 
 listen prometheus
-    bind {{ ansible_eth0.ipv4.address }}:9000
+    bind {{ ansible_eth1.ipv4.address }}:9000
     mode http
     http-request use-service prometheus-exporter if { path /metrics }
     no log
@@ -38,7 +38,7 @@ listen prometheus
 
 listen ssh-forward
     log 27.0.0.1:512 local2
-    bind {{ ansible_eth1.ipv4.address }}:2222
+    bind {{ ansible_eth2.ipv4.address }}:2222
     mode tcp
     option tcplog
     timeout client 1h
@@ -56,7 +56,7 @@ listen kubernetes-apiserver-https
   timeout server 10m
   balance roundrobin
 {% for server in groups[kubeadm_master_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:6443 check check-ssl verify none inter 10000
+  server {{ server }} {{ hostvars[ server ].ansible_eth1.ipv4.address }}:6443 check check-ssl verify none inter 10000
 {% endfor %}
 
 frontend kubernetes-ingress-front
@@ -81,7 +81,7 @@ backend kubernetes-ingress-backend
   option log-health-checks
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:80 check inter 1000
+  server {{ server }} {{ hostvars[ server ].ansible_eth1.ipv4.address }}:80 check inter 1000
 {% endfor %}
 
 frontend kubernetes-ingress-front-https
@@ -95,7 +95,7 @@ frontend kubernetes-ingress-front-https
   http-request use-service lua.reply_captcha if { var(req.remediation) -m str "captcha" } # serve captcha template if remediation is captcha
   http-request use-service lua.reply_ban if { var(req.remediation) -m str "ban" } # serve ban template if remediation is ban
   # Crowdsec bouncer <<<
-  bind *:443 ssl crt /etc/ssl/certs/haproxy.pem
+  bind *:443 ssl crt /etc/ssl/certs/haproxy-combined.pem
   mode http
   log 127.0.0.1:512 local0
   default_backend kubernetes-ingress-backend-https
@@ -106,7 +106,7 @@ backend kubernetes-ingress-backend-https
   option log-health-checks
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
-  server {{ server }} {{ hostvars[ server ].ansible_eth0.ipv4.address }}:443 check inter 1000 ssl verify required ca-file /etc/ssl/certs/ingress-nginx.crt  sni req.hdr(Host)
+  server {{ server }} {{ hostvars[ server ].ansible_eth1.ipv4.address }}:443 check inter 1000 ssl verify none
 {% endfor %}
 
 # Crowdsec Backend

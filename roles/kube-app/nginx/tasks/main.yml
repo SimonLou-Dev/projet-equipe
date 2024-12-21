@@ -36,24 +36,3 @@
       become_method: sudo
       shell: "kubectl create secret -n ingress-nginx tls {{ nginx_global_cert_name }} --key=/etc/ssl/certs/ingress-nginx.key --cert=/etc/ssl/certs/ingress-nginx.crt"
 
-- name: copy cert localy
-  become: yes
-  become_method: sudo
-  fetch:
-    src: /etc/ssl/certs/ingress-nginx.crt
-    dest: /tmp/ingress-nginx.crt
-
-- name: push cert on proxies
-  become: yes
-  become_method: sudo
-  copy:
-    src: /tmp/ingress-nginx.crt
-    dest: /etc/ssl/certs/ingress-nginx.crt
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['haproxy'] }}"
-
-- name: Delete temporary values file
-  file:
-    state: absent
-    path: /tmp/ingress-nginx.yaml
-  delegate_to: localhost

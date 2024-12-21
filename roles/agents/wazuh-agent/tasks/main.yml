@@ -1,36 +1,16 @@
-- name: check if wazuh repo exist
-  yum_repository:
-    name: wazuh
-    baseurl: https://packages.wazuh.com/4.x/yum/
-    description: Wazuh repository
-  register: __wazuh_repo
-  changed_when: False
-  ignore_errors: yes
-
 - name: add key for wazuh
-  when: __wazuh_repo.failed
   rpm_key:
     key: https://packages.wazuh.com/key/GPG-KEY-WAZUH
     state: present
 
 - name: add wazuh repo
-  when: __wazuh_repo.failed
   yum_repository:
     name: wazuh
     description: Wazuh repository
     baseurl: https://packages.wazuh.com/4.x/yum/
-    gpgcheck: yes
+    gpgcheck: no
     gpgkey: https://packages.wazuh.com/key/GPG-KEY-WAZUH
     protect: yes
-    enabled: yes
-    state: present
-
-- name: reactive repo
-  when: not __wazuh_repo.failed
-  yum_repository:
-    name: wazuh
-    baseurl: https://packages.wazuh.com/4.x/yum/
-    description: Wazuh repository
     enabled: yes
     state: present
 

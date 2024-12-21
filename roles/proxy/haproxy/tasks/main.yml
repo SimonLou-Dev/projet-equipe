@@ -3,12 +3,20 @@
 #    update-cache: yes
 #    cache_valid_time: 3600
 
+- name: Install zenetys repository
+  yum_repository:
+    name: zenetys
+    description: zenetys
+    baseurl: https://packages.zenetys.com/latest/redhat/9/RPMS/x86_64/
+    gpgcheck: no
+    enabled: yes
+
 - name: check if requirement are present
   yum:
       name: "{{ item }}"
       state: present
   loop:
-      - haproxy
+      - haproxy31z
       - iptables-services
       - firewalld
       - net-tools
@@ -30,8 +38,6 @@
     owner: root
     group: root
     mode: 0755
-
-
 
 - name: iptables configuration to act as a gateway
   shell: "{{ item }}"
@@ -80,11 +86,3 @@
 
 - meta: flush_handlers
   ignore_unreachable: yes
-
-- name: Check if haproxy is running (by SSH on 2222)
-  tcp_wait:
-    host: 10.255.0.112
-    port: 2222
-    delay: 10
-    timeout: 10
-  delegate_to: localhost

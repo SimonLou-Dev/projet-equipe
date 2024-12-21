@@ -12,7 +12,7 @@ all:
     haproxy:
       hosts:
         proxy-0:
-          ansible_host: 10.0.0.10
+          ansible_host: 10.100.0.10
           ansible_user: "{{ proxy_0_user }}"
           ansible_sudo_pass: "{{ proxy_0_sudo_password }}"
     kubernetes:
@@ -20,13 +20,13 @@ all:
         k8s_masters:
           hosts:
             kube-master-0:
-              ansible_host: 10.0.0.20
+              ansible_host: 10.100.0.20
               ansible_user: "{{ kube_master_0_user }}"
               ansible_sudo_pass: "{{ kube_master_0_sudo_password }}"
         k8s_workers:
           hosts:
             kube-worker-0:
-              ansible_host: 10.0.0.30
+              ansible_host: 10.100.0.30
               ansible_user: "{{ kube_worker_0_user }}"
               ansible_sudo_pass: "{{ kube_worker_0_sudo_password }}"
     bastions:

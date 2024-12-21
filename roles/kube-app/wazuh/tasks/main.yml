@@ -160,22 +160,6 @@
       become_method: sudo
       shell: "kubectl apply -f /tmp/wazuh.yaml"
 
-    - name: wait for indexer ready
-      become: yes
-      become_method: sudo
-      shell: "kubectl wait --for=condition=ready -n wazuh pod/wazuh-indexer-0"
-      register: __wazuh_indexer_ready
-      until: __wazuh_indexer_ready.rc == 0
-      retries: 20
-
-    - name: Reload security config in pod
-      kubernetes.core.k8s_exec:
-        namespace: wazuh
-        pod: wazuh-indexer-0
-        command: 'bash -c "export JAVA_HOME=/usr/share/wazuh-indexer/jdk && /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh -cd /usr/share/wazuh-indexer/opensearch-security/ -nhnv -cacert  /usr/share/wazuh-indexer/certs/root-ca.pem -cert /usr/share/wazuh-indexer/certs/admin.pem  -key /usr/share/wazuh-indexer/certs/admin-key.pem -p 9200 -icl -h \$NODE_NAME'
-      register: __wazuh_reload_security
-      failed_when: __wazuh_reload_security.rc != 0
-
     - name: Creating pv
       include_tasks: create_pv.yml
       loop:
@@ -190,6 +174,23 @@
       loop:
         - /tmp/wazuh-kubernetes
         - /tmp/wazuh.yaml
+
+    - name: wait for indexer ready
+      become: yes
+      become_method: sudo
+      shell: "kubectl wait --for=condition=ready -n wazuh pod/wazuh-indexer-0"
+      register: __wazuh_indexer_ready
+      until: __wazuh_indexer_ready.rc == 0
+      retries: 20
+
+    - name: Reload security config in pod
+      when: false
+      kubernetes.core.k8s_exec:
+        namespace: wazuh
+        pod: wazuh-indexer-0
+        command: 'bash -c "export JAVA_HOME=/usr/share/wazuh-indexer/jdk && /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh -cd /usr/share/wazuh-indexer/opensearch-security/ -nhnv -cacert  /usr/share/wazuh-indexer/certs/root-ca.pem -cert /usr/share/wazuh-indexer/certs/admin.pem  -key /usr/share/wazuh-indexer/certs/admin-key.pem -p 9200 -icl -h \$NODE_NAME"'
+      register: __wazuh_reload_security
+      failed_when: __wazuh_reload_security.rc != 0
 
 - name: Check if ingress exist
   become: yes

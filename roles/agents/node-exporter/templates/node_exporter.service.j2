@@ -6,7 +6,7 @@ After=network-online.target
 User={{ node_exporter_user }}
 Group={{ node_exporter_group }}
 Type=simple
-ExecStart={{ node_exporter_bin }} --collector.textfile.directory {{ node_exporter_dir_data }}
+ExecStart={{ node_exporter_bin }} --collector.textfile.directory {{ node_exporter_dir_data }} --web.listen-address={{ ansible_eth0.ipv4.address }}:9101
 
 [Install]
 WantedBy=multi-user.target

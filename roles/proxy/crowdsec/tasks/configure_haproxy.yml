@@ -2,7 +2,7 @@
   become: yes
   become_method: sudo
   stat:
-    path: "/etc/ssl/certs/haproxy.pem"
+    path: "/etc/ssl/certs/haproxy-combined.pem"
   register: __cert
 
 - name: "[certificates] Install required packages"
@@ -45,7 +45,8 @@
     common_name: projetequipe
     organization_name: Ansible, Inc.
     subject_alt_name:
-      - "DNS:nginx_global_domain"
+      - "DNS:{{ nginx_global_domain }}"
+      #- "IP:{{ ansible_eth2.ipv4.address }}"
   register: csr
 
 - name: "[certificates] Generate CRT"
@@ -58,14 +59,51 @@
     privatekey_path: /etc/ssl/certs/haproxy.pem.key
     provider: selfsigned
 
+- name: "[certificates] Read private key"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  ansible.builtin.slurp:
+    src: /etc/ssl/certs/haproxy.pem.key
+  register: private_key_content
+
+- name: "[certificates] Read certificate"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  ansible.builtin.slurp:
+    src: /etc/ssl/certs/haproxy.pem
+  register: certificate_content
+
+- name: "[certificates] Combine KEY and CRT into PEM"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  copy:
+    dest: /etc/ssl/certs/haproxy-combined.pem
+    content: |
+      {{ private_key_content.content | b64decode }}
+      {{ certificate_content.content | b64decode }}
+
 
 - name: "[certificates] Check permissions"
-  when: __cert.stat.exists == false
   become: yes
   become_method: sudo
   file:
     mode: 0600
-    path: "/etc/ssl/certs/haproxy.pem"
+    owner: haproxy
+    group: haproxy
+    path: "{{ item }}"
+    state: file
+  loop:
+    - /etc/ssl/certs/haproxy.pem.key
+    - /etc/ssl/certs/haproxy.pem
+    - /etc/ssl/certs/haproxy-combined.pem
+
+- name: authorize haproxy to map domain
+  become: yes
+  become_method: sudo
+  shell: "setsebool -P haproxy_connect_any 1 && setsebool -P domain_can_mmap_files 1"
 
 - name: Configure haproxy
   become: yes

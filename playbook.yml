@@ -9,7 +9,7 @@
   become_method: sudo
   become: true
   roles:
-    #- proxy/haproxy
+    - proxy/haproxy
 
 - name: Base Hardening
   hosts: a #all !proxmox
@@ -57,9 +57,9 @@
   roles:
     #- tools/helm
     #- tools/kustomize
-    - kube-app/nginx
+    #- kube-app/nginx
     - kube-app/monitoring
-    - kube-app/wazuh
+    #- kube-app/wazuh
     #- kube-app/database
 
 - name: Install Agents
@@ -68,7 +68,7 @@
   become: yes
   roles:
     - agents/node-exporter
-    - agents/wazuh-agent
+    #- agents/wazuh-agent
 
 - name: Install crowdsec
   hosts: haproxy

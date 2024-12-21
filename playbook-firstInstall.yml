@@ -9,7 +9,7 @@
   become_method: sudo
   become: true
   roles:
-    - haproxy
+    - proxy/haproxy
 
 - name: Base Hardening
   hosts: all
