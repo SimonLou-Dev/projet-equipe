@@ -1,0 +1,90 @@
+- name: "[certificates] Check if exists"
+  become: yes
+  become_method: sudo
+  stat:
+    path: "/etc/ssl/certs/haproxy.pem"
+  register: __cert
+
+- name: "[certificates] Install required packages"
+  become: yes
+  become_method: sudo
+  yum:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - openssl
+    - python3-cryptography
+
+- name: "[certificates] Create directories"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  loop:
+    - /etc/ssl/certs
+    - /etc/ssl/private
+
+- name: "[certificates] Generate KEY"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  community.crypto.openssl_privatekey:
+    path: /etc/ssl/certs/haproxy.pem.key
+
+- name: "[certificates] Generate CSR"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  community.crypto.openssl_csr_pipe:
+    privatekey_path: /etc/ssl/certs/haproxy.pem.key
+    common_name: projetequipe
+    organization_name: Ansible, Inc.
+    subject_alt_name:
+      - "DNS:nginx_global_domain"
+  register: csr
+
+- name: "[certificates] Generate CRT"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  community.crypto.x509_certificate:
+    path: /etc/ssl/certs/haproxy.pem
+    csr_content: "{{ csr.csr }}"
+    privatekey_path: /etc/ssl/certs/haproxy.pem.key
+    provider: selfsigned
+
+
+- name: "[certificates] Check permissions"
+  when: __cert.stat.exists == false
+  become: yes
+  become_method: sudo
+  file:
+    mode: 0600
+    path: "/etc/ssl/certs/haproxy.pem"
+
+- name: Configure haproxy
+  become: yes
+  become_method: sudo
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+    validate: haproxy -c -V -f %s
+  notify: restart_haproxy
+
+- meta: flush_handlers
+  ignore_unreachable: yes
+
+- name: Wait for connection to be established
+  wait_for_connection:
+    delay: 10
+    timeout: 10
+    connect_timeout: 10
+    sleep: 10

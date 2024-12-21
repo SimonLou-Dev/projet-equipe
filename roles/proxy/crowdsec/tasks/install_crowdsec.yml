@@ -1,0 +1,91 @@
+# Make check
+- name: Add crowdsec repo
+  yum_repository:
+    state: present
+    name: crowdsec_crowdsec
+    baseurl: https://packagecloud.io/crowdsec/crowdsec/el/9/$basearch
+    description: Crowdsec repository
+    gpgcheck: no
+    gpgkey: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    repo_gpgcheck: no
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    metadata_expire: 3600
+
+- name: Add crowdsec source repo
+  yum_repository:
+    state: present
+    name: crowdsec_crowdsec-source
+    baseurl: https://packagecloud.io/crowdsec/crowdsec/el/9/SRPMS
+    description: Crowdsec repository source
+    gpgcheck: no
+    gpgkey: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    repo_gpgcheck: no
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    metadata_expire: 3600
+
+- name: Open firewalld (crowdsec metrics) port on proxy
+  become: yes
+  become_method: sudo
+  shell: "firewall-cmd --permanent --add-port=6060/tcp"
+
+- name: Restart firewalld
+  become: yes
+  become_method: sudo
+  shell: "firewall-cmd --reload"
+
+- name: Open SELinux(crowdsec metrics) port on proxy
+  become: yes
+  become_method: sudo
+  shell: "semanage port -a -t http_port_t -p tcp 6060"
+
+- name: Install crowdsec
+  yum:
+    name: crowdsec
+    state: present
+    enablerepo: crowdsec,crowdsec-source
+
+- name: Creat crowdsec directories
+  file:
+    state: directory
+    path: "{{ item }}"
+    owner: root
+    group: root
+  loop:
+    - /etc/crowdsec
+    - /crowdsec/parsers/s02-enrich
+
+- name: Configure crowdsec
+  template:
+    src: crowdsec.yaml.j2
+    dest: /etc/crowdsec/config.yaml
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart_crowdsec
+
+- name: Install crowdsec acquisition configuration
+  template:
+    src: crowdsec-acquis.yaml.j2
+    dest: /etc/crowdsec/acquis.yaml
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart_crowdsec
+
+- name: Install crowdsec whitelist configuration
+  template:
+    src: crowdsec-whitelist.yaml.j2
+    dest: /crowdsec/parsers/s02-enrich/whitelists.yaml
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart_crowdsec
+
+- meta: flush_handlers
+
+- name: Enroll crowdsec
+  shell: "cscli console enroll -e context {{ crowdsec_api_key }}"
+  register: enroll_output
+

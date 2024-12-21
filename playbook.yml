@@ -51,7 +51,7 @@
     - kubernetes
 
 - name: Install kubernetes app
-  hosts: kube-master-0
+  hosts: a #kube-master-0
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
@@ -69,3 +69,12 @@
   roles:
     - agents/node-exporter
     - agents/wazuh-agent
+
+- name: Install crowdsec
+  hosts: haproxy
+  become_method: sudo
+  become: yes
+  collections:
+    - community.crypto
+  roles:
+    - proxy/crowdsec

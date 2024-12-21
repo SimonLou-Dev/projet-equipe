@@ -1,0 +1,12 @@
+- name: Configure ryslog for haproxy
+  become: true
+  template:
+    src: rsyslog_haproxy.conf.j2
+    dest: /etc/rsyslog.d/49-haproxy.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart_rsyslog
+
+
+- meta: flush_handlers

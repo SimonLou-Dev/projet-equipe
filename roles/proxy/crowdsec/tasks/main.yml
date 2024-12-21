@@ -1,59 +1,24 @@
-# Make check
-- name: Add crowdsec repo
-  yum_repository:
-    state: present
-    name: crowdsec_crowdsec
-    baseurl: https://packagecloud.io/crowdsec/crowdsec/el/9/$basearch
-    description: Crowdsec repository
-    gpgcheck: no
-    gpgkey: https://packagecloud.io/crowdsec/crowdsec/gpgkey
-    repo_gpgcheck: no
-    sslverify: yes
-    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
-    metadata_expire: 3600
-
-- name: Add crowdsec source repo
-  yum_repository:
-    state: present
-    name: crowdsec_crowdsec-source
-    baseurl: https://packagecloud.io/crowdsec/crowdsec/el/9/SRPMS
-    description: Crowdsec repository source
-    gpgcheck: no
-    gpgkey: https://packagecloud.io/crowdsec/crowdsec/gpgkey
-    repo_gpgcheck: no
-    sslverify: yes
-    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
-    metadata_expire: 3600
-
 - name: Install crowdsec
-  yum:
-    name: crowdsec
-    state: present
-    enablerepo: crowdsec,crowdsec-source
-
-- name: Enroll crowdsec
-  shell: "cscli console enroll -e context {{ crowdsec_api_key }}"
-  register: enroll_output
-
-- name: Install haproxy bouncer from github
-  get_url:
-    url: https://github.com/crowdsecurity/cs-haproxy-bouncer/releases/download/v0.0.7/crowdsec-haproxy-bouncer.tgz
-    dest: /tmp/crowdsec-haproxy-bouncer.tgz
-
-- name: Extract haproxy bouncer
-  unarchive:
-    src: /tmp/crowdsec-haproxy-bouncer.tgz
-    dest: /tmp
-    remote_src: yes
+  when: false
+  include_tasks: install_crowdsec.yml
 
 - name: Install haproxy bouncer
-  when: False
-  shell: "cd /tmp/crowdsec-haproxy-bouncer-v* && ./install.sh"
+  when: false
+  include_tasks: install_bouncer.yml
 
-- name: Check if bot is already registered
-  shell: "cscli bouncers list | grep crowdsec-haproxy-bouncer"
-  register: bouncer_output
-  ignore_errors: yes
+- name: Install rsyslog
+  when: false
+  include_tasks: configure_rsyslog.yml
+
+- name: Configure haproxy
+  include_tasks: configure_haproxy.yml
+
+- name: Install crowdsec Haproxy collection
+  become: true
+  shell: "cscli collections install crowdsecurity/haproxy"
+  notify: restart_crowdsec
+
+
 
 
 

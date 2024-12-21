@@ -1,0 +1,10 @@
+# Collect log with UDP
+$ModLoad imudp
+$UDPServerAddress 127.0.0.1
+$UDPServerRun 512
+
+# Creating separate log files based on the severity
+local0.* /var/log/haproxy-crowdsec.log
+local1.* /var/log/haproxy-kubernetes.log
+local2.* /var/log/haproxy-ssh.log
+local3.* /var/log/haproxy.log

@@ -1,0 +1,12 @@
+name: crowdsecurity/whitelists
+description: "Whitelist events from private ipv4 addresses"
+whitelist:
+  reason: "private ipv4/ipv6 ip/ranges"
+  ip:
+    - "127.0.0.1"
+    - "::1"
+  cidr:
+    - "10.0.0.0/24" # Réseau de publication
+    - "10.100.0.0/24" # Réseau d'administration
+  # expression:
+  #   - "'foo.com' in evt.Meta.source_ip.reverse"

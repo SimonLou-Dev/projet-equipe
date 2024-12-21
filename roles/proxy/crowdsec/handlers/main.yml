@@ -1,0 +1,19 @@
+- name: restart_crowdsec
+  systemd:
+    name: crowdsec
+    state: restarted
+    enabled: yes
+
+- name: restart_haproxy
+  systemd:
+    name: haproxy
+    state: restarted
+    enabled: yes
+  ignore_unreachable: yes
+  ignore_errors: yes
+
+- name: restart_rsyslog
+  systemd:
+    name: rsyslog
+    state: restarted
+    enabled: yes

@@ -1,5 +1,5 @@
 global
-    log         127.0.0.1 local2
+    log         127.0.0.1:512 local3
     chroot      /var/lib/haproxy
     pidfile     /var/run/haproxy.pid
     maxconn     4000
@@ -16,10 +16,8 @@ global
 defaults
     mode                    http
     log                     global
-    option                  httplog
     option                  dontlognull
     option http-server-close
-    option forwardfor       except 127.0.0.0/8
     option                  redispatch
     retries                 3
     timeout http-request    10s
@@ -37,7 +35,9 @@ listen prometheus
     http-request use-service prometheus-exporter if { path /metrics }
     no log
 
+
 listen ssh-forward
+    log 27.0.0.1:512 local2
     bind {{ ansible_eth1.ipv4.address }}:2222
     mode tcp
     option tcplog
@@ -47,6 +47,8 @@ listen ssh-forward
 
 
 listen kubernetes-apiserver-https
+  log 27.0.0.1:512 local1
+  option tcplog
   bind {{ kube_api_internal_endpoint }}:6443
   mode tcp
   option log-health-checks
@@ -66,12 +68,16 @@ frontend kubernetes-ingress-front
   http-request use-service lua.reply_captcha if { var(req.remediation) -m str "captcha" } # serve captcha template if remediation is captcha
   http-request use-service lua.reply_ban if { var(req.remediation) -m str "ban" } # serve ban template if remediation is ban
   # Crowdsec bouncer <<<
+  log 127.0.0.1:512 local0
   bind *:80
-  mode tcp
+  mode http
   default_backend kubernetes-ingress-backend
+  option forwardfor       except 127.0.0.0/8
+  option httplog
 
 backend kubernetes-ingress-backend
-  mode tcp
+  option forwardfor       except 127.0.0.0/8
+  mode http
   option log-health-checks
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
@@ -79,6 +85,8 @@ backend kubernetes-ingress-backend
 {% endfor %}
 
 frontend kubernetes-ingress-front-https
+  option httplog
+  option forwardfor       except 127.0.0.0/8
   # Crowdsec bouncer >>>
   stick-table type ip size 10k expire 30m # declare a stick table to cache captcha verifications
   http-request lua.crowdsec_allow # action to identify crowdsec remediation
@@ -87,12 +95,14 @@ frontend kubernetes-ingress-front-https
   http-request use-service lua.reply_captcha if { var(req.remediation) -m str "captcha" } # serve captcha template if remediation is captcha
   http-request use-service lua.reply_ban if { var(req.remediation) -m str "ban" } # serve ban template if remediation is ban
   # Crowdsec bouncer <<<
-  bind *:443 ssl crt /etc/ssl/certs/haproxy.key
-  mode tcp
+  bind *:443 ssl crt /etc/ssl/certs/haproxy.pem
+  mode http
+  log 127.0.0.1:512 local0
   default_backend kubernetes-ingress-backend-https
 
 backend kubernetes-ingress-backend-https
-  mode tcp
+  option forwardfor       except 127.0.0.0/8
+  mode http
   option log-health-checks
   balance roundrobin
 {% for server in groups[kubeadm_worker_group_name] %}
