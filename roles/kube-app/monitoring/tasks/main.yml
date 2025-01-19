@@ -60,11 +60,6 @@
     name: "{{ nginx_global_cert_name }}"
   register: __cert
 
-- name: Fail if no default certificate found
-  when: __cert.resources | length == 0
-  fail:
-   msg: "No default certificate found, please run playbook with kube-app/nginx role first"
-
 - name: Template values for helm chart
   template:
     src: values.yaml.j2

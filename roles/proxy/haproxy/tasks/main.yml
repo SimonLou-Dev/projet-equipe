@@ -16,7 +16,7 @@
       name: "{{ item }}"
       state: present
   loop:
-      - haproxy31z
+      - haproxy30z
       - iptables-services
       - firewalld
       - net-tools

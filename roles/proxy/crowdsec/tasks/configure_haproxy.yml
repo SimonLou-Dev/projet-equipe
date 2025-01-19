@@ -90,7 +90,7 @@
   become: yes
   become_method: sudo
   file:
-    mode: 0600
+    mode: ug+rw,o+r
     owner: haproxy
     group: haproxy
     path: "{{ item }}"

@@ -20,6 +20,9 @@
   register: bouncer_output
   ignore_errors: yes
 
+- name: set right on crowdsec lib
+  shell: "chcon -t etc_t /var/lib/crowdsec/lua/haproxy/community_blocklist.map"
+
 - name: Configure and register haproxy bouncer
   when: bouncer_output.rc != 0
   block:

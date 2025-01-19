@@ -42,7 +42,10 @@ EOF"
       port: 443
       type: http_port_t
     - protocol: tcp
-      port: 10249
+      port: 10250
+      type: http_port_t
+    - protocol: tcp
+      port: 6443
       type: http_port_t
   when: inventory_hostname is not in groups['k8s_masters']
 

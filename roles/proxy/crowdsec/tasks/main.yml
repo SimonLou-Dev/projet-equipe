@@ -1,13 +1,10 @@
 - name: Install crowdsec
-  when: false
   include_tasks: install_crowdsec.yml
 
 - name: Install haproxy bouncer
-  when: false
   include_tasks: install_bouncer.yml
 
 - name: Install rsyslog
-  when: false
   include_tasks: configure_rsyslog.yml
 
 - name: Configure haproxy

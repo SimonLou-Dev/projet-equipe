@@ -12,7 +12,7 @@
     - proxy/haproxy
 
 - name: Base Hardening
-  hosts: a #all !proxmox
+  hosts: a #haproxy all !proxmox
   become_method: sudo
   become: yes
   roles:
@@ -57,21 +57,21 @@
   roles:
     #- tools/helm
     #- tools/kustomize
-    #- kube-app/nginx
+    - kube-app/nginx
     - kube-app/monitoring
-    #- kube-app/wazuh
-    #- kube-app/database
+    - kube-app/wazuh
+    - kube-app/database
 
 - name: Install Agents
-  hosts: a #all, !proxmox
+  hosts: haproxy #all, !proxmox
   become_method: sudo
   become: yes
   roles:
     - agents/node-exporter
-    #- agents/wazuh-agent
+    - agents/wazuh-agent
 
 - name: Install crowdsec
-  hosts: haproxy
+  hosts: a #haproxy
   become_method: sudo
   become: yes
   collections:
