@@ -31,8 +31,8 @@
       command: 'openssl req -x509 -nodes -new -newkey rsa:2048 -days 1024 -sha256 -keyout /etc/ssl/certs/ingress-nginx.key -out /etc/ssl/certs/ingress-nginx.crt -subj "/CN={{ nginx_global_domain }}/C=FR" -addext "subjectAltName = DNS:{{ nginx_global_domain }} {% for ingress_ip in nginx_ingress_service_external_ips %},IP:{{ ingress_ip }}{% endfor %}"'
 
     #kubectl create secret -n wazuh tls wazuh-selfsigned --key=/tmp/wazuh.key --cert=/tmp/wazuh.crt
-    - name: create kube secret for cert
-      become: yes
-      become_method: sudo
-      shell: "kubectl create secret -n ingress-nginx tls {{ nginx_global_cert_name }} --key=/etc/ssl/certs/ingress-nginx.key --cert=/etc/ssl/certs/ingress-nginx.crt"
+- name: create kube secret for cert
+  become: yes
+  become_method: sudo
+  shell: "kubectl create secret -n ingress-nginx tls {{ nginx_global_cert_name }} --key=/etc/ssl/certs/ingress-nginx.key --cert=/etc/ssl/certs/ingress-nginx.crt"
 

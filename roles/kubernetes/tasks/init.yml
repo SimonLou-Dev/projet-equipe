@@ -21,7 +21,7 @@
 
 - name: Check if kubeconfig already exists
   stat:
-    path: "/root/.kube"
+    path: "/root/.kube/config"
   register: __kubeconfig_already_init
 
 - name: Create .kube directory
@@ -38,7 +38,7 @@
     src: /etc/kubernetes/admin.conf
     dest: "/root/.kube/config"
     remote_src: true
-    mode: 777
+    mode: 750
   when: not __kubeconfig_already_init.stat.exists
 
 - name: Check if master is initialized
@@ -60,6 +60,8 @@
   delegate_to: "{{ kubeadm_init_node }}"
 
 - name: Install CNI flannel
+  become: yes 
+  become_method: sudo 
   shell: "kubectl apply -f /tmp/flannel.yml"
   when: ansible_hostname == kubeadm_init_node
   delegate_to: "{{ kubeadm_init_node }}"
@@ -98,6 +100,8 @@
   register: __monitoring_namespace
 
 - name: Create monitoring base resources
+  become: yes
+  become_method: sudo
   when: __monitoring_namespace.resources | length == 0
   block:
   - name: Create monitoring namespace
@@ -116,6 +120,8 @@
       dest: /tmp/crd-prom.yaml
 
   - name: install CRDs Prometheus
+    become: yes
+    become_method: sudo
     shell: "kubectl create -f /tmp/crd-prom.yaml"
 
 

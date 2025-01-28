@@ -55,7 +55,7 @@
   when: __wazuh_repo.stat.exists == True
 
 - name: install wazuh
-  #when: __wazuh_namespace.resources | length == 0
+  when: __wazuh_namespace.resources | length == 0
   become: yes
   become_method: sudo
   block:
@@ -212,10 +212,10 @@
     name: "{{ nginx_global_cert_name }}"
   register: __cert
 
-- name: Fail if no default certificate found
-  when: __cert.resources | length == 0
-  fail:
-    msg: "No default certificate found, please run playbook with kube-app/nginx role first"
+    #- name: Fail if no default certificate found
+    #when: __cert.resources | length == 0
+    #fail:
+    #msg: "No default certificate found, please run playbook with kube-app/nginx role first"
 - name: Create ingress
   become: yes
   become_method: sudo

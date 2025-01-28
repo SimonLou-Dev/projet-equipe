@@ -12,7 +12,7 @@
     - proxy/haproxy
 
 - name: Base Hardening
-  hosts: a #haproxy all !proxmox
+  hosts: a #all !proxmox
   become_method: sudo
   become: yes
   roles:
@@ -39,7 +39,7 @@
       - { path: "/run/containerd", owner: "root", group: "root", mode: "0755", part_start: "95%", part_end: "100%", format: "ext4", disk: "/dev/vdb" } # 5.3
 
 - name: Install kubernetes init
-  hosts:  a #k8s_masters, k8s_workers
+  hosts: a #k8s_masters, k8s_workers
   become_method: sudo
   become: yes
   collections:
@@ -51,19 +51,19 @@
     - kubernetes
 
 - name: Install kubernetes app
-  hosts: a #kube-master-0
+  hosts: kube-master-0
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
     #- tools/helm
     #- tools/kustomize
     - kube-app/nginx
-    - kube-app/monitoring
-    - kube-app/wazuh
-    - kube-app/database
+    #- kube-app/monitoring
+    #- kube-app/wazuh
+    #- kube-app/database
 
 - name: Install Agents
-  hosts: haproxy #all, !proxmox
+  hosts: a #all, !proxmox
   become_method: sudo
   become: yes
   roles:
