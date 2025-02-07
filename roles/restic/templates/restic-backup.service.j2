@@ -1,0 +1,10 @@
+[Unit]
+Description=Restic Backup Service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=restic
+Group=restic
+ExecStart=/bin/bash {{ restic_script_file }}
+Nice=10

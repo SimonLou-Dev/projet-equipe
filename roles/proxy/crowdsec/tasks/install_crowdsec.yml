@@ -77,7 +77,7 @@
 - name: Install crowdsec whitelist configuration
   template:
     src: crowdsec-whitelist.yaml.j2
-    dest: /crowdsec/parsers/s02-enrich/whitelists.yaml
+    dest: /etc/crowdsec/parsers/s02-enrich/whitelists.yaml
     owner: root
     group: root
     mode: 0644

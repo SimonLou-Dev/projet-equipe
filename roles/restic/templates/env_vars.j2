@@ -1,0 +1,9 @@
+export RESTIC_PASSWORD="{{ restic_password }}"
+
+# Configuration SFTP
+export RESTIC_REPOSITORY_SFTP="sftp:{{ restic_sftp_user }}@{{ restic_sftp_server }}:{{ restic_sftp_path }}"
+
+# Configuration S3
+export AWS_ACCESS_KEY_ID="{{ restic_aws_access_key }}"
+export AWS_SECRET_ACCESS_KEY="{{ restic_aws_secret_key }}"
+export RESTIC_REPOSITORY_S3="s3:{{ restic_aws_endpoint }}/{{ restic_aws_bucket }}"

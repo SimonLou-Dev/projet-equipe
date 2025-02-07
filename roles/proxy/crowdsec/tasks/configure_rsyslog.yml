@@ -1,3 +1,8 @@
+- name: Open SELinux(syslog udp socket) port on proxy
+  become: yes
+  become_method: sudo
+  shell: "semanage port -a -t syslogd_port_t -p udp 512"
+
 - name: Configure ryslog for haproxy
   become: true
   template:

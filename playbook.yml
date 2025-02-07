@@ -51,7 +51,7 @@
     - kubernetes
 
 - name: Install kubernetes app
-  hosts: kube-master-0
+  hosts: a #kube-master-0
   collections:
       - kubernetes.core #ansible-galaxy collection install kubernetes.core
   roles:
@@ -78,3 +78,11 @@
     - community.crypto
   roles:
     - proxy/crowdsec
+
+- name: Install backup
+  hosts: k8s_workers
+  become_method: sudo
+  become: yes
+  roles:
+    - restic
+

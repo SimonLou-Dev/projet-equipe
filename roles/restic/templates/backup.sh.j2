@@ -1,0 +1,15 @@
+#!/bin/bash
+
+source {{ restic_env_file }}
+
+
+{% for folder in restic_default_folders %}
+# Backup de {{ folder.path }}
+restic -r $RESTIC_REPOSITORY_SFTP backup {{ folder.path }}
+restic -r $RESTIC_REPOSITORY_S3 backup {{ folder.path }}
+
+{% endfor %}
+
+# Nettoyage et suppression des anciens backups (garder les 7 derniers jours)
+restic -r $RESTIC_REPOSITORY_SFTP forget --keep-daily 7 --prune
+restic -r $RESTIC_REPOSITORY_S3 forget --keep-daily 7 --prune

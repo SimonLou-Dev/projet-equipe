@@ -1,0 +1,86 @@
+- name: Installer EPEL pour obtenir Restic
+  ansible.builtin.yum:
+    name: epel-release
+    state: present
+
+- name: Installer Restic
+  ansible.builtin.yum:
+    name: restic
+    state: present
+
+- name: Create restic user
+  ansible.builtin.user:
+    name: restic
+    shell: /bin/bash
+    system: true
+    state: present
+
+- name: Add right to restic user
+  become: yes
+  become_method: sudo
+  shell: "chown -R :restic {{ item.path }}"
+  with_items: "{{ restic_default_folders }}"
+
+- name: Créer le dossier de configuration Restic
+  ansible.builtin.file:
+    path: /etc/restic
+    state: directory
+    owner: restic
+    mode: "0755"
+
+- name: Déployer les variables d’environnement Restic
+  ansible.builtin.template:
+    src: env_vars.j2
+    dest: "{{ restic_env_file }}"
+    mode: "0400"
+    owner: restic
+
+- name: Initialiser le dépôt SFTP
+  become: yes
+  become_user: restic
+  ansible.builtin.shell: |
+    source {{ restic_env_file }} && restic -r $RESTIC_REPOSITORY_SFTP init
+  args:
+    creates: "{{ restic_sftp_path }}/config"
+  failed_when: false
+  changed_when: false
+
+- name: Initialiser le dépôt S3
+  become: yes
+  become_user: restic
+  ansible.builtin.shell: |
+    source {{ restic_env_file }} && restic -r $RESTIC_REPOSITORY_S3 init
+  args:
+    creates: "{{ restic_aws_bucket }}/config"
+  failed_when: false
+  changed_when: false
+
+- name: Déployer le script de sauvegarde
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "{{ restic_script_file }}"
+    owner: "restic"
+    group: "restic"
+    mode: "0700"
+
+- name: Déployer le service Systemd
+  ansible.builtin.template:
+    src: restic-backup.service.j2
+    dest: "/etc/systemd/system/restic-backup.service"
+    mode: "0644"
+
+- name: Déployer le timer Systemd
+  ansible.builtin.template:
+    src: restic-backup.timer.j2
+    dest: "/etc/systemd/system/restic-backup.timer"
+    mode: "0644"
+
+- name: Recharger Systemd
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Activer et démarrer le timer Restic
+  ansible.builtin.systemd:
+    name: restic-backup.timer
+    enabled: yes
+    state: started
