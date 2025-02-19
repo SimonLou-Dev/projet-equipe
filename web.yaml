@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: site-web
+  labels:
+    app: site-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: site-web
+  template:
+    metadata:
+      labels:
+        app: site-web
+    spec:
+      imagePullSecrets:
+      - name: ghrc-creds
+      containers:
+      - name: web
+        imagePullPolicy: Always
+        image: "ghcr.io/p0cee/projet-dev:main"
+        ports:
+        - containerPort: 3000
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 15
+        env:
+        - name: POSTGRES_HOST
+          value: ""
+        - name: POSTGRES_USER
+          value: ""
+        - name: POSTGRES_PASSWORD
+          value: ""
+        - name: POSTGRES_DB
+          value: ""
+        - name: DATABASE_URL
+          value: ""
+        - name: NEXTAUTH_URL
+          value: ""
+        - name: NEXTAUTH_SECRET
+          value: ""
+        - name: SMTP_HOST
+          value: ""
+        - name: SMTP_PORT
+          value: ""
+        - name: SMTP_USER
+          value: ""
+        - name: SMTP_PASS
+          value: ""
+        - name: SMTP_FROM
+          value: ""
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-web
+spec:
+  type: ClusterIP
+  selector:
+    app: "site-web"
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: web.groupe2.internal
+    http:
+      paths:
+      - backend:
+          service:
+            name: svc-web
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - web.groupe2.internal
